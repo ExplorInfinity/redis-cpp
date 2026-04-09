@@ -47,13 +47,25 @@ int main(int argc, char **argv) {
     int client_addr_len = sizeof(client_addr);
     std::cout << "Waiting for a client to connect...\n";
 
-    int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-    std::cout << "Client connected\n";
+    while (true) {
+        int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+        std::cout << "Client connected\n";
 
-    const char* response = "+PONG\r\n";
-    send(client_fd, response, strlen(response), 0);
+        const char* response = "+PONG\r\n";
 
-    close(client_fd);
+        char buffer[1024];
+        while (true) {
+            auto bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0) {
+                // std::cerr << "Client Disconnected\n";
+                break;
+            }
+            send(client_fd, response, strlen(response), 0);
+        }
+
+        close(client_fd);
+    }
+
     close(server_fd);
 
     return 0;
