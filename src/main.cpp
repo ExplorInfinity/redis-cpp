@@ -7,6 +7,23 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <thread>
+
+void handle_client(const int client_fd) {
+    const char* response = "+PONG\r\n";
+
+    char buffer[1024];
+    while (true) {
+        auto bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0) {
+            // std::cerr << "Client Disconnected\n";
+            break;
+        }
+        send(client_fd, response, strlen(response), 0);
+    }
+
+    close(client_fd);
+}
 
 int main(int argc, char **argv) {
     // Flush after every std::cout / std::cerr
@@ -51,19 +68,7 @@ int main(int argc, char **argv) {
         int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
         std::cout << "Client connected\n";
 
-        const char* response = "+PONG\r\n";
-
-        char buffer[1024];
-        while (true) {
-            auto bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            if (bytes_received <= 0) {
-                // std::cerr << "Client Disconnected\n";
-                break;
-            }
-            send(client_fd, response, strlen(response), 0);
-        }
-
-        close(client_fd);
+        std::thread(handle_client, client_fd).detach();
     }
 
     close(server_fd);
