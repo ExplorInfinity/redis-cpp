@@ -9,8 +9,30 @@
 #include <netdb.h>
 #include <thread>
 
+#include "resp_parser.h"
+#include "utils.h"
+
+#define debug 0
+
+using RESP::Token;
+
+void handleCmd(const std::string &input, const int client_fd) {
+    auto token = RESP::parse(input);
+    const auto &cmd = (token.getDataType() == Token::DataType::ARRAY ?  token.getArray()[0].getString() : token.getString());
+
+    if (cmd == "echo") {
+        const auto &arr = token.getArray();
+        const auto &s = arr[1].getString();
+        const std::string response = "$" + std::to_string(s.size()) + "\r\n" + s + "\r\n";
+        send(client_fd, response.c_str(), strlen(response.c_str()), 0);
+    } else if (cmd == "ping") {
+        const auto response = "+PONG\r\n";
+        send(client_fd, response, strlen(response), 0);
+    }
+}
+
 void handle_client(const int client_fd) {
-    const char* response = "+PONG\r\n";
+    std::string inputBuffer;
 
     char buffer[1024];
     while (true) {
@@ -19,16 +41,29 @@ void handle_client(const int client_fd) {
             // std::cerr << "Client Disconnected\n";
             break;
         }
-        send(client_fd, response, strlen(response), 0);
+
+        inputBuffer.append(buffer, bytes_received);
+
+#if debug
+        printRaw(inputBuffer);
+#endif
+
+        handleCmd(inputBuffer, client_fd);
     }
+
+#if debug
+    std::cout << "Client Disconnected\n";
+#endif
 
     close(client_fd);
 }
 
 int main(int argc, char **argv) {
-    // Flush after every std::cout / std::cerr
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
+
+    // Testing String
+    // auto token = RESP::parse("*4\r\n:10001\r\n+Hello Bye!\r\n$12\r\nMaybe Maybe!\r\n*2\r\n+Test 1\r\n+Test 2\r\n");
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -36,15 +71,13 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Since the tester restarts your program quite often, setting SO_REUSEADDR
-    // ensures that we don't run into 'Address already in use' errors
     int reuse = 1;
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
         std::cerr << "setsockopt failed\n";
         return 1;
     }
 
-    struct sockaddr_in server_addr;
+    struct sockaddr_in server_addr{};
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(6379);
@@ -60,7 +93,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    struct sockaddr_in client_addr;
+    struct sockaddr_in client_addr{};
     int client_addr_len = sizeof(client_addr);
     std::cout << "Waiting for a client to connect...\n";
 
@@ -72,6 +105,5 @@ int main(int argc, char **argv) {
     }
 
     close(server_fd);
-
     return 0;
 }
