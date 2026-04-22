@@ -24,18 +24,16 @@ void handleCmd(const std::string &input, const int client_fd) {
 
     auto token = RESP::parse(input);
     const auto &cmd = (token.getDataType() == Token::DataType::ARRAY ?  token.getArray()[0].getString() : token.getString());
+    const auto &args = token.getArray();
 
-    if (cmd == "echo") {
-        const auto &args = token.getArray();
+    if (cmd == "ping") {
+        const auto response = "+PONG\r\n";
+        send(client_fd, response, strlen(response), 0);
+    } else if (cmd == "echo") {
         const auto &s = args[1].getString();
         const std::string response = "$" + std::to_string(s.size()) + "\r\n" + s + "\r\n";
         send(client_fd, response.c_str(), strlen(response.c_str()), 0);
-    } else if (cmd == "ping") {
-        const auto response = "+PONG\r\n";
-        send(client_fd, response, strlen(response), 0);
     } else if (cmd == "set") {
-        const auto &args = token.getArray();
-
         if (args.size() == 5) {
             const float expirationTime = (args[3].getString() == "ex" ? 1000.0f : 1.0f) * static_cast<float>(std::stoi(args[4].getString()));
             storage.set(args[1].getString(), args[2].getString(), true, expirationTime);
@@ -45,13 +43,11 @@ void handleCmd(const std::string &input, const int client_fd) {
 
         send(client_fd, Responses::OK, strlen(Responses::OK), 0);
     } else if (cmd == "get") {
-        const auto &args = token.getArray();
         if (const auto value = storage.get(args[1].getString())) {
             const std::string response = RESP::encodeIntoBulkString(*value);
             send(client_fd, response.c_str(), response.size(), 0);
         } else send(client_fd, Responses::NullBulkString, strlen(Responses::NullBulkString), 0);
     } else if (cmd == "rpush" || cmd == "lpush") {
-        const auto &args = token.getArray();
         const auto &key = args[1].getString();
         for (int i = 2; i < args.size(); i++) {
             storage.addToArray(key, args[i].getString(), cmd == "lpush");
@@ -59,7 +55,6 @@ void handleCmd(const std::string &input, const int client_fd) {
         const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(key));
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "lrange") {
-        const auto &args = token.getArray();
         const auto arr = storage.getArray(
             args[1].getString(),
             std::stoi(args[2].getString()),
@@ -68,8 +63,11 @@ void handleCmd(const std::string &input, const int client_fd) {
         const std::string response = RESP::encodeIntoArray(arr);
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "llen") {
-        const auto &args = token.getArray();
         const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(args[1].getString()));
+        send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "lpop") {
+        const std::string lastElement = storage.popArray(args[1].getString());
+        const std::string response = (lastElement.empty() ? Responses::NullBulkString : RESP::encodeIntoBulkString(lastElement));
         send(client_fd, response.c_str(), response.size(), 0);
     }
 }

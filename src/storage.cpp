@@ -53,6 +53,15 @@ std::size_t Storage::sizeOfArray(const std::string &key) const {
     return arr_storage.at(key).values.size();
 }
 
+std::string Storage::popArray(const std::string &key) {
+    if (!arr_storage.contains(key) || arr_storage[key].values.empty())
+        return "";
+
+    const auto temp = arr_storage[key].values.back();
+    arr_storage[key].values.pop_back();
+    return temp;
+}
+
 std::optional<std::string> Storage::get(const std::string &key) {
 #if debug
     std::cout << "Get Request: " << key << std::endl;
