@@ -50,11 +50,11 @@ void handleCmd(const std::string &input, const int client_fd) {
             const std::string response = RESP::encodeIntoBulkString(*value);
             send(client_fd, response.c_str(), response.size(), 0);
         } else send(client_fd, Responses::NullBulkString, strlen(Responses::NullBulkString), 0);
-    } else if (cmd == "rpush") {
+    } else if (cmd == "rpush" || cmd == "lpush") {
         const auto &args = token.getArray();
         const auto &key = args[1].getString();
         for (int i = 2; i < args.size(); i++) {
-            storage.addToArray(key, args[i].getString());
+            storage.addToArray(key, args[i].getString(), cmd == "lpush");
         }
         const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(key));
         send(client_fd, response.c_str(), response.size(), 0);

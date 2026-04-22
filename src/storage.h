@@ -62,7 +62,7 @@ public:
     void set(const std::string &key, const std::string &value);
     void set(const std::string &key, const std::string &value, bool expires, float expirationTime);
 
-    void addToArray(const std::string &key, const std::string &value);
+    void addToArray(const std::string &key, const std::string &value, bool prepend = false);
     [[nodiscard]] std::vector<std::string> getArray(const std::string &key, int start, int stop) const;
     [[nodiscard]] std::size_t sizeOfArray(const std::string &key) const;
 

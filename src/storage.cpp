@@ -19,8 +19,11 @@ void Storage::set(const std::string &key, const std::string &value, const bool e
     str_storage.insert_or_assign(key, StringValue(value, expires, expirationTime));
 }
 
-void Storage::addToArray(const std::string &key, const std::string &value) {
-    arr_storage[key].values.push_back(value);
+void Storage::addToArray(const std::string &key, const std::string &value, const bool prepend) {
+    if (auto &values = arr_storage[key].values; prepend)
+        values.insert(values.begin(), value);
+    else
+        values.push_back(value);
 }
 
 std::vector<std::string> Storage::getArray(const std::string &key, int start, int stop) const {
