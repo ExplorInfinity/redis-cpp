@@ -18,6 +18,10 @@
 using RESP::Token;
 
 void handleCmd(const std::string &input, const int client_fd) {
+#if debug
+    printRaw(input);
+#endif
+
     auto token = RESP::parse(input);
     const auto &cmd = (token.getDataType() == Token::DataType::ARRAY ?  token.getArray()[0].getString() : token.getString());
 
