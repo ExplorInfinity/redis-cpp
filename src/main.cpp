@@ -67,6 +67,10 @@ void handleCmd(const std::string &input, const int client_fd) {
         );
         const std::string response = RESP::encodeIntoArray(arr);
         send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "llen") {
+        const auto &args = token.getArray();
+        const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(args[1].getString()));
+        send(client_fd, response.c_str(), response.size(), 0);
     }
 }
 
