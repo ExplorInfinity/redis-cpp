@@ -5,7 +5,7 @@
 #include <ranges>
 #include <algorithm>
 
-#define debug 1
+#define debug 0
 
 /* RESP Token Class */
 RESP::Token::Token(const DataType type) : type(type) {}
@@ -127,4 +127,8 @@ RESP::Token RESP::parseArray(const std::string &s, int &pos) {
     }
 
     return t;
+}
+
+std::string RESP::encodeIntoBulkString(const std::string &s) {
+    return std::format("${}\r\n{}\r\n", s.size(), s);
 }

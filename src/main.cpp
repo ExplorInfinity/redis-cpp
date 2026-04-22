@@ -11,6 +11,7 @@
 
 #include "resp_parser.h"
 #include "utils.h"
+#include "storage.h"
 
 #define debug 0
 
@@ -21,13 +22,23 @@ void handleCmd(const std::string &input, const int client_fd) {
     const auto &cmd = (token.getDataType() == Token::DataType::ARRAY ?  token.getArray()[0].getString() : token.getString());
 
     if (cmd == "echo") {
-        const auto &arr = token.getArray();
-        const auto &s = arr[1].getString();
+        const auto &args = token.getArray();
+        const auto &s = args[1].getString();
         const std::string response = "$" + std::to_string(s.size()) + "\r\n" + s + "\r\n";
         send(client_fd, response.c_str(), strlen(response.c_str()), 0);
     } else if (cmd == "ping") {
         const auto response = "+PONG\r\n";
         send(client_fd, response, strlen(response), 0);
+    } else if (cmd == "set") {
+        const auto &args = token.getArray();
+        storage.set(args[1].getString(), args[2].getString());
+        send(client_fd, Responses::OK, strlen(Responses::OK), 0);
+    } else if (cmd == "get") {
+        const auto &args = token.getArray();
+        if (const auto value = storage.get(args[1].getString())) {
+            const std::string response = RESP::encodeIntoBulkString(*value);
+            send(client_fd, response.c_str(), response.size(), 0);
+        } else send(client_fd, Responses::NullBulkString, strlen(Responses::NullBulkString), 0);
     }
 }
 
@@ -49,6 +60,7 @@ void handle_client(const int client_fd) {
 #endif
 
         handleCmd(inputBuffer, client_fd);
+        inputBuffer.clear();
     }
 
 #if debug

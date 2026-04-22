@@ -14,7 +14,9 @@ add_executable(redis ${SOURCE_FILES}
         src/resp_parser.h
         src/resp_parser.cpp
         src/utils.h
-        src/utils.cpp)
+        src/utils.cpp
+        src/storage.h
+        src/storage.cpp)
 
 target_link_libraries(redis PRIVATE asio asio::asio)
 target_link_libraries(redis PRIVATE Threads::Threads)

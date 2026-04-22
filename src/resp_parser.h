@@ -2,6 +2,12 @@
 
 #include <vector>
 #include <string>
+#include <format>
+
+namespace Responses {
+    constexpr const char* NullBulkString = "$-1\r\n";
+    constexpr const char* OK = "+OK\r\n";
+}
 
 namespace RESP {
     constexpr std::string CRLF = "\r\n";
@@ -37,5 +43,7 @@ namespace RESP {
     Token parseSimpleString(const std::string &s, int &pos);
     Token parseBulkString(const std::string &s, int &pos);
     Token parseArray(const std::string &s, int &pos);
+
+    std::string encodeIntoBulkString(const std::string &s);
 }
 
