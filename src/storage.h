@@ -3,52 +3,67 @@
 #include <string>
 #include <unordered_map>
 #include <optional>
-#include <chrono>
 #include <utility>
+#include <vector>
 
-class Timer {
-    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+#include "timer.h"
 
-public:
-    Timer() {
-        start = std::chrono::high_resolution_clock::now();
-    }
-
-    [[nodiscard]] float getElapsedTime() const {
-        const std::chrono::time_point<std::chrono::high_resolution_clock> end = std::chrono::high_resolution_clock::now();
-        const std::chrono::duration<float> duration = end - start;
-        const float ms = duration.count() * 1000.0f;
-        return ms;
-    }
-};
-
-struct StorageValue {
-
-    std::string value;
-
-private:
+class Value {
+protected:
     bool expires = false;
     float expirationTime = -1;
     Timer timer;
 
 public:
-    explicit StorageValue(std::string value)
-        : value(std::move(value)) { }
+    Value() = default;
 
-    explicit StorageValue(std::string value, const bool expires, const float expirationTime)
-        : value(std::move(value)), expires(expires), expirationTime(expirationTime), timer() { }
+    explicit Value(const bool expires, const float expirationTime)
+        : expires(expires), expirationTime(expirationTime) { }
 
     [[nodiscard]] bool expired() const {
         return (expires ? timer.getElapsedTime() > expirationTime : false);
     }
 };
 
+class StringValue : public Value {
+public:
+    std::string value;
+
+    explicit StringValue(std::string value)
+        : value(std::move(value)) { }
+
+    explicit StringValue(std::string value, const bool expires, const float expirationTime)
+        : Value(expires, expirationTime), value(std::move(value)) { }
+};
+
+class ArrayValue : public Value {
+public:
+    std::vector<std::string> values;
+
+    ArrayValue() = default;
+
+    explicit ArrayValue(std::string value) {
+        values.push_back(std::move(value));
+    }
+
+    explicit ArrayValue(std::string value, const bool expires, const float expirationTime)
+        : Value(expires, expirationTime)
+    {
+        values.push_back(std::move(value));
+    }
+};
+
+
 class Storage {
-    std::unordered_map<std::string, StorageValue> map;
+    std::unordered_map<std::string, StringValue> str_storage;
+    std::unordered_map<std::string, ArrayValue> arr_storage;
 
 public:
     void set(const std::string &key, const std::string &value);
     void set(const std::string &key, const std::string &value, bool expires, float expirationTime);
+
+    void addToArray(const std::string &key, const std::string &value);
+    [[nodiscard]] std::size_t sizeOfArray(const std::string &key) const;
 
     std::optional<std::string> get(const std::string &key);
 };

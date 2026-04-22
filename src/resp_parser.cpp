@@ -129,6 +129,10 @@ RESP::Token RESP::parseArray(const std::string &s, int &pos) {
     return t;
 }
 
+std::string RESP::encodeIntoInt(long long i) {
+    return std::format(":{}\r\n", i);
+}
+
 std::string RESP::encodeIntoBulkString(const std::string &s) {
     return std::format("${}\r\n{}\r\n", s.size(), s);
 }

@@ -16,7 +16,8 @@ add_executable(redis ${SOURCE_FILES}
         src/utils.h
         src/utils.cpp
         src/storage.h
-        src/storage.cpp)
+        src/storage.cpp
+        src/timer.h)
 
 target_link_libraries(redis PRIVATE asio asio::asio)
 target_link_libraries(redis PRIVATE Threads::Threads)

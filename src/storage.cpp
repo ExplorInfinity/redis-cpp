@@ -8,7 +8,7 @@
 #define debug 0
 
 void Storage::set(const std::string &key, const std::string &value) {
-    map.insert_or_assign(key, StorageValue(value));
+    str_storage.insert_or_assign(key, StringValue(value));
 }
 
 void Storage::set(const std::string &key, const std::string &value, const bool expires, const float expirationTime) {
@@ -16,7 +16,18 @@ void Storage::set(const std::string &key, const std::string &value, const bool e
     std::cout << "Expiration Time: " << expirationTime << std::endl;
 #endif
 
-    map.insert_or_assign(key, StorageValue(value, expires, expirationTime));
+    str_storage.insert_or_assign(key, StringValue(value, expires, expirationTime));
+}
+
+void Storage::addToArray(const std::string &key, const std::string &value) {
+    arr_storage[key].values.push_back(value);
+}
+
+std::size_t Storage::sizeOfArray(const std::string &key) const {
+    if (!arr_storage.contains(key))
+        return 0;
+
+    return arr_storage.at(key).values.size();
 }
 
 std::optional<std::string> Storage::get(const std::string &key) {
@@ -24,8 +35,8 @@ std::optional<std::string> Storage::get(const std::string &key) {
     std::cout << "Get Request: " << key << std::endl;
 #endif
 
-    if (!map.contains(key) || map.at(key).expired())
+    if (!str_storage.contains(key) || str_storage.at(key).expired())
         return std::nullopt;
 
-    return map.at(key).value;
+    return str_storage.at(key).value;
 }
