@@ -31,7 +31,14 @@ void handleCmd(const std::string &input, const int client_fd) {
         send(client_fd, response, strlen(response), 0);
     } else if (cmd == "set") {
         const auto &args = token.getArray();
-        storage.set(args[1].getString(), args[2].getString());
+
+        if (args.size() == 5) {
+            const float expirationTime = (args[3].getString() == "ex" ? 1000.0f : 1.0f) * static_cast<float>(std::stoi(args[4].getString()));
+            storage.set(args[1].getString(), args[2].getString(), true, expirationTime);
+        } else if (args.size() == 3) {
+            storage.set(args[1].getString(), args[2].getString());
+        }
+
         send(client_fd, Responses::OK, strlen(Responses::OK), 0);
     } else if (cmd == "get") {
         const auto &args = token.getArray();
