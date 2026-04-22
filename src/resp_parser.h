@@ -46,5 +46,6 @@ namespace RESP {
 
     std::string encodeIntoInt(long long i);
     std::string encodeIntoBulkString(const std::string &s);
+    std::string encodeIntoArray(const std::vector<std::string> &v);
 }
 

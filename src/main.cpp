@@ -54,6 +54,15 @@ void handleCmd(const std::string &input, const int client_fd) {
         }
         const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(key));
         send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "lrange") {
+        const auto &args = token.getArray();
+        const auto arr = storage.getArray(
+            args[1].getString(),
+            std::stoi(args[2].getString()),
+            std::stoi(args[3].getString())
+        );
+        const std::string response = RESP::encodeIntoArray(arr);
+        send(client_fd, response.c_str(), response.size(), 0);
     }
 }
 

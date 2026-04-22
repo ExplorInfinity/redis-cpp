@@ -136,3 +136,10 @@ std::string RESP::encodeIntoInt(long long i) {
 std::string RESP::encodeIntoBulkString(const std::string &s) {
     return std::format("${}\r\n{}\r\n", s.size(), s);
 }
+
+std::string RESP::encodeIntoArray(const std::vector<std::string> &v) {
+    std::string s = std::format("*{}\r\n", v.size());
+    for (const auto &value : v)
+        s += encodeIntoBulkString(value);
+    return s;
+}
