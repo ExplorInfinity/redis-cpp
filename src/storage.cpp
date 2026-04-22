@@ -62,6 +62,16 @@ std::string Storage::popArray(const std::string &key) {
     return temp;
 }
 
+std::string Storage::popFrontArray(const std::string &key) {
+    if (!arr_storage.contains(key) || arr_storage[key].values.empty())
+        return "";
+
+    auto &values = arr_storage[key].values;
+    const auto temp = values.front();
+    values.erase(values.begin());
+    return temp;
+}
+
 std::optional<std::string> Storage::get(const std::string &key) {
 #if debug
     std::cout << "Get Request: " << key << std::endl;

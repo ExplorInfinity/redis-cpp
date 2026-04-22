@@ -66,6 +66,7 @@ public:
     [[nodiscard]] std::vector<std::string> getArray(const std::string &key, int start, int stop) const;
     [[nodiscard]] std::size_t sizeOfArray(const std::string &key) const;
     std::string popArray(const std::string &key);
+    std::string popFrontArray(const std::string &key);
 
     std::optional<std::string> get(const std::string &key);
 };

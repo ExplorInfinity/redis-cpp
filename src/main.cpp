@@ -66,8 +66,8 @@ void handleCmd(const std::string &input, const int client_fd) {
         const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(args[1].getString()));
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "lpop") {
-        const std::string lastElement = storage.popArray(args[1].getString());
-        const std::string response = (lastElement.empty() ? Responses::NullBulkString : RESP::encodeIntoBulkString(lastElement));
+        const std::string firstElement = storage.popFrontArray(args[1].getString());
+        const std::string response = (firstElement.empty() ? Responses::NullBulkString : RESP::encodeIntoBulkString(firstElement));
         send(client_fd, response.c_str(), response.size(), 0);
     }
 }
