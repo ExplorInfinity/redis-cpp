@@ -99,6 +99,26 @@ bool Storage::containsList(const std::string &key) const {
     return (it != kvStorage.end() && it->second->getType() == ValueType::List && !dynamic_cast<ListValue*>(it->second.get())->values.empty());
 }
 
+std::pair<int, int> Storage::lastStreamID{};
+
+void Storage::setCurrStreamID(const int ms, const int sq) {
+    lastStreamID.first = ms;
+    lastStreamID.second = sq;
+}
+
+void Storage::setCurrStreamID(std::pair<int, int> id) {
+    lastStreamID = std::move(id);
+}
+
+bool Storage::isValidStreamID(const int ms, const int sq) {
+    const auto [lms, lsq] = lastStreamID;
+    return (ms > lms || (ms == lms && sq > lsq));
+}
+
+bool Storage::isValidStreamID(const std::pair<int, int> &id) {
+    return isValidStreamID(id.first, id.second);
+}
+
 std::optional<ValueType> Storage::getType(const std::string &key) const {
     const auto it = kvStorage.find(key);
 
@@ -106,4 +126,9 @@ std::optional<ValueType> Storage::getType(const std::string &key) const {
         return std::nullopt;
 
     return it->second->getType();
+}
+
+std::pair<int, int> StreamValue::parseStreamID(const std::string &s) {
+    const auto index = s.find('-');
+    return { std::stoi(s.substr(0, index)), std::stoi(s.substr(index + 1)) };
 }

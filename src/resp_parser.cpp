@@ -147,3 +147,7 @@ std::string RESP::encodeIntoArray(const std::vector<std::string> &v) {
         s += encodeIntoBulkString(value);
     return s;
 }
+
+std::string RESP::encodeIntoSimpleError(const std::string &s) {
+    return std::format("-{}\r\n", s);
+}

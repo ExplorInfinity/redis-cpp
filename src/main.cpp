@@ -119,9 +119,19 @@ void handleCmd(const std::string &input, const int client_fd) {
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "xadd") {
         const auto &key = args[1].getString();
-        const auto &id = args[2].getString();
-        auto &valueContainer = storage.set<StreamValue>(key, id).get();
+        const auto id = args[2].getString();
 
+        if (!Storage::isValidStreamID(StreamValue::parseStreamID(id))) {
+            const std::string response = RESP::encodeIntoSimpleError(
+                id == "0-0" ?
+                "ERR The ID specified in XADD must be greater than 0-0" :
+                "ERR The ID specified in XADD is equal or smaller than the target stream top item"
+            );
+            send(client_fd, response.c_str(), response.size(), 0);
+            return;
+        }
+
+        auto &valueContainer = storage.set<StreamValue>(key, args[2].getString()).get();
         for (int i = 3; i < args.size(); i += 2) {
             valueContainer.kv_pairs[args[i].getString()] = args[i + 1].getString();
         }

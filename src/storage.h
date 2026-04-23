@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 
+#include "resp_parser.h"
 #include "timer.h"
 
 enum class ValueType { NIL, String, Stream, List };
@@ -74,13 +75,11 @@ public:
     std::string id;
     std::unordered_map<std::string, std::string> kv_pairs;
 
+    static std::pair<int, int> parseStreamID(const std::string &s);
+
     StreamValue() = default;
-
-    explicit StreamValue(std::string id)
-        : id(std::move(id)) { }
-
-    explicit StreamValue(std::string id, const bool expires, const float expirationTime)
-        : Value(expires, expirationTime), id(std::move(id)) { }
+    explicit StreamValue(std::string id);
+    explicit StreamValue(std::string id, bool expires, float expirationTime);
 
     [[nodiscard]] ValueType getType() const override {
         return ValueType::Stream;
@@ -90,6 +89,7 @@ public:
 
 class Storage {
     std::unordered_map<std::string, std::unique_ptr<Value>> kvStorage;
+    static std::pair<int, int> lastStreamID;
 public:
     /* SET functions */
     template <class ValueClass>
@@ -139,7 +139,27 @@ public:
     std::string RPOP(const std::string &key);
     std::string LPOP(const std::string &key);
 
+    /* Stream Helper functions */
+    static void setCurrStreamID(int ms, int sq);
+    static void setCurrStreamID(std::pair<int, int> id);
+    [[nodiscard]] static bool isValidStreamID(int ms, int sq);
+    [[nodiscard]] static bool isValidStreamID(const std::pair<int, int> &id);
+
     [[nodiscard]] std::optional<ValueType> getType(const std::string &key) const;
 };
+
+inline StreamValue::StreamValue(std::string id)
+    : id(std::move(id))
+{
+    const auto [curr_ms, curr_sq] = parseStreamID(this->id);
+    Storage::setCurrStreamID(curr_ms, curr_sq);
+}
+
+inline StreamValue::StreamValue(std::string id, const bool expires, const float expirationTime)
+        : Value(expires, expirationTime), id(std::move(id))
+{
+    const auto [curr_ms, curr_sq] = parseStreamID(this->id);
+    Storage::setCurrStreamID(curr_ms, curr_sq);
+}
 
 inline Storage storage;

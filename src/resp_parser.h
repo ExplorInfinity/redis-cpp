@@ -50,5 +50,6 @@ namespace RESP {
     std::string encodeIntoSimpleString(const std::string &s);
     std::string encodeIntoBulkString(const std::string &s);
     std::string encodeIntoArray(const std::vector<std::string> &v);
+    std::string encodeIntoSimpleError(const std::string &s);
 }
 
