@@ -36,27 +36,27 @@ void handleCmd(const std::string &input, const int client_fd) {
     } else if (cmd == "set") {
         if (args.size() == 5) {
             const float expirationTime = (args[3].getString() == "ex" ? 1000.0f : 1.0f) * static_cast<float>(std::stoi(args[4].getString()));
-            storage.set(args[1].getString(), args[2].getString(), true, expirationTime);
+            storage.set<StringValue>(args[1].getString(), args[2].getString(), true, expirationTime);
         } else if (args.size() == 3) {
-            storage.set(args[1].getString(), args[2].getString());
+            storage.set<StringValue>(args[1].getString(), args[2].getString());
         }
 
         send(client_fd, Responses::OK, strlen(Responses::OK), 0);
     } else if (cmd == "get") {
-        if (const auto value = storage.get(args[1].getString())) {
-            const std::string response = RESP::encodeIntoBulkString(*value);
+        if (const auto value = storage.get<StringValue>(args[1].getString())) {
+            const std::string response = RESP::encodeIntoBulkString(value->get().value);
             send(client_fd, response.c_str(), response.size(), 0);
         } else send(client_fd, Responses::NullBulkString, strlen(Responses::NullBulkString), 0);
     } else if (cmd == "rpush" || cmd == "lpush") {
         const auto &key = args[1].getString();
         for (int i = 2; i < args.size(); i++) {
-            storage.addToArray(key, args[i].getString(), cmd == "lpush");
+            storage.appendToList(key, args[i].getString(), cmd == "lpush");
         }
-        const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(key));
+        const std::string response = RESP::encodeIntoInt(storage.sizeOfList(key));
         dataAvailableCV.notify_all();
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "lrange") {
-        const auto arr = storage.getArray(
+        const auto arr = storage.getListCopy(
             args[1].getString(),
             std::stoi(args[2].getString()),
             std::stoi(args[3].getString())
@@ -64,7 +64,7 @@ void handleCmd(const std::string &input, const int client_fd) {
         const std::string response = RESP::encodeIntoArray(arr);
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "llen") {
-        const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(args[1].getString()));
+        const std::string response = RESP::encodeIntoInt(storage.sizeOfList(args[1].getString()));
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "lpop") {
         const auto &key = args[1].getString();
@@ -73,12 +73,12 @@ void handleCmd(const std::string &input, const int client_fd) {
             std::vector<std::string> elements;
             elements.reserve(count);
             for (int i = 0; i < count; i++) {
-                elements.push_back(storage.popFrontArray(key));
+                elements.push_back(storage.LPOP(key));
             }
             const std::string response = RESP::encodeIntoArray(elements);
             send(client_fd, response.c_str(), response.size(), 0);
         } else {
-            const std::string firstElement = storage.popFrontArray(key);
+            const std::string firstElement = storage.LPOP(key);
             const std::string response = (firstElement.empty() ? Responses::NullBulkString : RESP::encodeIntoBulkString(firstElement));
             send(client_fd, response.c_str(), response.size(), 0);
         }
@@ -97,7 +97,7 @@ void handleCmd(const std::string &input, const int client_fd) {
         std::cout << expirationTime << std::endl;
 
         const auto predicate = [&] {
-            return storage.sizeOfArray(key) > 0;
+            return storage.sizeOfList(key) > 0;
         };
 
         bool lpop = false;
@@ -109,12 +109,24 @@ void handleCmd(const std::string &input, const int client_fd) {
             lpop = true;
         }
 
-        const std::string response = (lpop ? RESP::encodeIntoArray({ key, storage.popFrontArray(key) }) : Responses::NullArray);
+        const std::string response = (lpop ? RESP::encodeIntoArray({ key, storage.LPOP(key) }) : Responses::NullArray);
         lock.unlock();
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "type") {
         const auto &key = args[1].getString();
-        const std::string response = RESP::encodeIntoSimpleString(storage.get(key) ? "string" : "none");
+        const auto type = storage.getType(key);
+        const std::string response = RESP::encodeIntoSimpleString(type ? ValueTypeStringMap[static_cast<int>(*type)] : "none");
+        send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "xadd") {
+        const auto &key = args[1].getString();
+        const auto &id = args[2].getString();
+        auto &valueContainer = storage.set<StreamValue>(key, id).get();
+
+        for (int i = 3; i < args.size(); i += 2) {
+            valueContainer.kv_pairs[args[i].getString()] = args[i + 1].getString();
+        }
+
+        const std::string response = RESP::encodeIntoBulkString(id);
         send(client_fd, response.c_str(), response.size(), 0);
     }
 }

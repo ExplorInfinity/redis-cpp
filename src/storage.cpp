@@ -4,46 +4,40 @@
 #include <string>
 #include <unordered_map>
 #include <optional>
+#include <functional>
+#include <memory>
 
 #define debug 0
 
-void Storage::set(const std::string &key, const std::string &value) {
-    str_storage.insert_or_assign(key, StringValue(value));
-}
+void Storage::appendToList(const std::string &key, const std::string &value, const bool prepend) {
+    const auto it = kvStorage.find(key);
+    if (it == kvStorage.end()) {
+        set<ListValue>(key, value);
+        return;
+    }
 
-void Storage::set(const std::string &key, const std::string &value, const bool expires, const float expirationTime) {
-#if debug
-    std::cout << "Expiration Time: " << expirationTime << std::endl;
-#endif
+    if (it->second->getType() != ValueType::List)
+        return;
 
-    str_storage.insert_or_assign(key, StringValue(value, expires, expirationTime));
-}
-
-std::optional<std::string> Storage::get(const std::string &key) {
-#if debug
-    std::cout << "Get Request: " << key << std::endl;
-#endif
-
-    if (!str_storage.contains(key) || str_storage.at(key).expired())
-        return std::nullopt;
-
-    return str_storage.at(key).value;
-}
-
-void Storage::addToArray(const std::string &key, const std::string &value, const bool prepend) {
-    if (auto &values = arr_storage[key].values; prepend)
-        values.insert(values.begin(), value);
+    auto *list = dynamic_cast<ListValue*>(it->second.get());
+    if (prepend)
+        list->values.insert(list->values.begin(), value);
     else
-        values.push_back(value);
+        list->values.push_back(value);
 }
 
-std::vector<std::string> Storage::getArray(const std::string &key, int start, int stop) const {
+std::vector<std::string> Storage::getListCopy(const std::string &key, int start, int stop) const {
 
-    if (!arr_storage.contains(key))
+    const auto it = kvStorage.find(key);
+    if (it == kvStorage.end() || it->second->getType() != ValueType::List)
         return {};
 
-    const auto &values = arr_storage.at(key).values;
+    const auto *list = dynamic_cast<ListValue*>(it->second.get());
+    const auto &values = list->values;
     const int size = static_cast<int>(values.size());
+
+    if (values.empty())
+        return {};
 
     start = std::max(0, (start + size) % size);
     stop = std::max(0, (std::min(stop, size - 1) + size) % size);
@@ -57,44 +51,59 @@ std::vector<std::string> Storage::getArray(const std::string &key, int start, in
     return res;
 }
 
-std::size_t Storage::sizeOfArray(const std::string &key) const {
-    if (!arr_storage.contains(key))
+std::size_t Storage::sizeOfList(const std::string &key) const {
+    const auto it = kvStorage.find(key);
+    if (it == kvStorage.end() || it->second->getType() != ValueType::List)
         return 0;
 
-    return arr_storage.at(key).values.size();
+    const auto *list = dynamic_cast<ListValue*>(it->second.get());
+    return list->values.size();
 }
 
-std::string Storage::popArray(const std::string &key) {
-    if (!arr_storage.contains(key) || arr_storage[key].values.empty())
+std::string Storage::RPOP(const std::string &key) {
+    const auto it = kvStorage.find(key);
+    if (it == kvStorage.end() || it->second->getType() != ValueType::List)
         return "";
 
-    auto &values = arr_storage[key].values;
+    auto *list = dynamic_cast<ListValue*>(it->second.get());
+    auto &values = list->values;
+
     const auto temp = values.back();
     values.pop_back();
 
     if (values.empty())
-        arr_storage.erase(key);
+        kvStorage.erase(key);
 
     return temp;
 }
 
-std::string Storage::popFrontArray(const std::string &key) {
-    if (!arr_storage.contains(key) || arr_storage[key].values.empty())
+std::string Storage::LPOP(const std::string &key) {
+    const auto it = kvStorage.find(key);
+    if (it == kvStorage.end() || it->second->getType() != ValueType::List)
         return "";
 
-    auto &values = arr_storage[key].values;
+    auto *list = dynamic_cast<ListValue*>(it->second.get());
+    auto &values = list->values;
+
     const auto temp = values.front();
     values.erase(values.begin());
 
     if (values.empty())
-        arr_storage.erase(key);
+        kvStorage.erase(key);
 
     return temp;
 }
 
-bool Storage::containsArray(const std::string &key) {
-    if (!arr_storage.contains(key) || arr_storage[key].values.empty())
-        return false;
+bool Storage::containsList(const std::string &key) const {
+    const auto it = kvStorage.find(key);
+    return (it != kvStorage.end() && it->second->getType() == ValueType::List && !dynamic_cast<ListValue*>(it->second.get())->values.empty());
+}
 
-    return true;
+std::optional<ValueType> Storage::getType(const std::string &key) const {
+    const auto it = kvStorage.find(key);
+
+    if (it == kvStorage.end())
+        return std::nullopt;
+
+    return it->second->getType();
 }
