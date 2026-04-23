@@ -133,6 +133,10 @@ std::string RESP::encodeIntoInt(long long i) {
     return std::format(":{}\r\n", i);
 }
 
+std::string RESP::encodeIntoSimpleString(const std::string &s) {
+    return std::format("+{}\r\n", s);
+}
+
 std::string RESP::encodeIntoBulkString(const std::string &s) {
     return std::format("${}\r\n{}\r\n", s.size(), s);
 }

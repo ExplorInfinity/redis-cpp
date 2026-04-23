@@ -19,6 +19,17 @@ void Storage::set(const std::string &key, const std::string &value, const bool e
     str_storage.insert_or_assign(key, StringValue(value, expires, expirationTime));
 }
 
+std::optional<std::string> Storage::get(const std::string &key) {
+#if debug
+    std::cout << "Get Request: " << key << std::endl;
+#endif
+
+    if (!str_storage.contains(key) || str_storage.at(key).expired())
+        return std::nullopt;
+
+    return str_storage.at(key).value;
+}
+
 void Storage::addToArray(const std::string &key, const std::string &value, const bool prepend) {
     if (auto &values = arr_storage[key].values; prepend)
         values.insert(values.begin(), value);
@@ -86,15 +97,4 @@ bool Storage::containsArray(const std::string &key) {
         return false;
 
     return true;
-}
-
-std::optional<std::string> Storage::get(const std::string &key) {
-#if debug
-    std::cout << "Get Request: " << key << std::endl;
-#endif
-
-    if (!str_storage.contains(key) || str_storage.at(key).expired())
-        return std::nullopt;
-
-    return str_storage.at(key).value;
 }

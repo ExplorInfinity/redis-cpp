@@ -112,6 +112,10 @@ void handleCmd(const std::string &input, const int client_fd) {
         const std::string response = (lpop ? RESP::encodeIntoArray({ key, storage.popFrontArray(key) }) : Responses::NullArray);
         lock.unlock();
         send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "type") {
+        const auto &key = args[1].getString();
+        const std::string response = RESP::encodeIntoSimpleString(storage.get(key) ? "string" : "none");
+        send(client_fd, response.c_str(), response.size(), 0);
     }
 }
 

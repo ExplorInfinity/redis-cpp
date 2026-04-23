@@ -47,6 +47,7 @@ namespace RESP {
     Token parseArray(const std::string &s, int &pos);
 
     std::string encodeIntoInt(long long i);
+    std::string encodeIntoSimpleString(const std::string &s);
     std::string encodeIntoBulkString(const std::string &s);
     std::string encodeIntoArray(const std::vector<std::string> &v);
 }
