@@ -92,7 +92,9 @@ void handleCmd(const std::string &input, const int client_fd) {
         std::unique_lock<std::mutex> lock(storageMutex);
 
         auto &key = args[1].getString();
-        auto expirationTime = std::stoi(args[2].getString());
+        auto expirationTime = std::stod(args[2].getString());
+
+        std::cout << expirationTime << std::endl;
 
         const auto predicate = [&] {
             return storage.sizeOfArray(key) > 0;
@@ -100,7 +102,7 @@ void handleCmd(const std::string &input, const int client_fd) {
 
         bool lpop = false;
         if (expirationTime > 0) {
-            const auto expiry = std::chrono::high_resolution_clock::now() + std::chrono::seconds(expirationTime);
+            const auto expiry = std::chrono::steady_clock::now() + std::chrono::duration<double>(expirationTime);
             lpop = dataAvailableCV.wait_until(lock, expiry, predicate);
         } else {
             dataAvailableCV.wait(lock, predicate);
