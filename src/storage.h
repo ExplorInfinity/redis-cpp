@@ -57,7 +57,6 @@ public:
 class Storage {
     std::unordered_map<std::string, StringValue> str_storage;
     std::unordered_map<std::string, ArrayValue> arr_storage;
-
 public:
     void set(const std::string &key, const std::string &value);
     void set(const std::string &key, const std::string &value, bool expires, float expirationTime);
@@ -67,6 +66,7 @@ public:
     [[nodiscard]] std::size_t sizeOfArray(const std::string &key) const;
     std::string popArray(const std::string &key);
     std::string popFrontArray(const std::string &key);
+    bool containsArray(const std::string &key);
 
     std::optional<std::string> get(const std::string &key);
 };

@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "resp_parser.h"
 #include "utils.h"
@@ -17,21 +19,19 @@
 
 using RESP::Token;
 
-void handleCmd(const std::string &input, const int client_fd) {
-#if debug
-    printRaw(input);
-#endif
+std::mutex storageMutex;
+std::condition_variable dataAvailableCV;
 
+void handleCmd(const std::string &input, const int client_fd) {
     auto token = RESP::parse(input);
     const auto &cmd = (token.getDataType() == Token::DataType::ARRAY ?  token.getArray()[0].getString() : token.getString());
     const auto &args = token.getArray();
 
     if (cmd == "ping") {
-        const auto response = "+PONG\r\n";
-        send(client_fd, response, strlen(response), 0);
+        send(client_fd, Responses::PONG, strlen(Responses::PONG), 0);
     } else if (cmd == "echo") {
         const auto &s = args[1].getString();
-        const std::string response = "$" + std::to_string(s.size()) + "\r\n" + s + "\r\n";
+        const std::string response = RESP::encodeIntoBulkString(s);
         send(client_fd, response.c_str(), strlen(response.c_str()), 0);
     } else if (cmd == "set") {
         if (args.size() == 5) {
@@ -53,6 +53,7 @@ void handleCmd(const std::string &input, const int client_fd) {
             storage.addToArray(key, args[i].getString(), cmd == "lpush");
         }
         const std::string response = RESP::encodeIntoInt(storage.sizeOfArray(key));
+        dataAvailableCV.notify_all();
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "lrange") {
         const auto arr = storage.getArray(
@@ -81,6 +82,34 @@ void handleCmd(const std::string &input, const int client_fd) {
             const std::string response = (firstElement.empty() ? Responses::NullBulkString : RESP::encodeIntoBulkString(firstElement));
             send(client_fd, response.c_str(), response.size(), 0);
         }
+    } else if (cmd == "blpop") {
+        if (args.size() != 3) {
+            std::cout << "Invalid number of arguments to command BLPOP" << std::endl;
+            std::cout << "BLPOP <list_key> <expiration_time>" << std::endl;
+            return;
+        }
+
+        std::unique_lock<std::mutex> lock(storageMutex);
+
+        auto &key = args[1].getString();
+        auto expirationTime = std::stoi(args[2].getString());
+
+        const auto predicate = [&] {
+            return storage.sizeOfArray(key) > 0;
+        };
+
+        bool lpop = false;
+        if (expirationTime > 0) {
+            const auto expiry = std::chrono::high_resolution_clock::now() + std::chrono::seconds(expirationTime);
+            lpop = dataAvailableCV.wait_until(lock, expiry, predicate);
+        } else {
+            dataAvailableCV.wait(lock, predicate);
+            lpop = true;
+        }
+
+        const std::string response = (lpop ? RESP::encodeIntoArray({ key, storage.popFrontArray(key) }) : Responses::NullArray);
+        lock.unlock();
+        send(client_fd, response.c_str(), response.size(), 0);
     }
 }
 
@@ -91,7 +120,9 @@ void handle_client(const int client_fd) {
     while (true) {
         auto bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
         if (bytes_received <= 0) {
-            // std::cerr << "Client Disconnected\n";
+#if debug
+        std::cerr << "Client Disconnected\n";
+#endif
             break;
         }
 

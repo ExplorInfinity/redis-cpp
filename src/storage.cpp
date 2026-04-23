@@ -57,8 +57,13 @@ std::string Storage::popArray(const std::string &key) {
     if (!arr_storage.contains(key) || arr_storage[key].values.empty())
         return "";
 
-    const auto temp = arr_storage[key].values.back();
-    arr_storage[key].values.pop_back();
+    auto &values = arr_storage[key].values;
+    const auto temp = values.back();
+    values.pop_back();
+
+    if (values.empty())
+        arr_storage.erase(key);
+
     return temp;
 }
 
@@ -69,7 +74,18 @@ std::string Storage::popFrontArray(const std::string &key) {
     auto &values = arr_storage[key].values;
     const auto temp = values.front();
     values.erase(values.begin());
+
+    if (values.empty())
+        arr_storage.erase(key);
+
     return temp;
+}
+
+bool Storage::containsArray(const std::string &key) {
+    if (!arr_storage.contains(key) || arr_storage[key].values.empty())
+        return false;
+
+    return true;
 }
 
 std::optional<std::string> Storage::get(const std::string &key) {

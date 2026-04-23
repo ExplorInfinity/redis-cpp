@@ -5,8 +5,10 @@
 #include <format>
 
 namespace Responses {
-    constexpr const char* NullBulkString = "$-1\r\n";
-    constexpr const char* OK = "+OK\r\n";
+    constexpr auto NullBulkString = "$-1\r\n";
+    constexpr auto NullArray = "*-1\r\n";
+    constexpr auto OK = "+OK\r\n";
+    constexpr auto PONG = "+PONG\r\n";
 }
 
 namespace RESP {
