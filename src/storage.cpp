@@ -187,8 +187,12 @@ StreamValue::StreamEntry& StreamValue::getEntriesMapAtID(const StreamID &id) {
 std::vector<std::pair<std::string, StreamValue::StreamEntry*>> StreamValue::getEntriesInRange(const std::string &start, const std::string &end) {
     std::vector<std::pair<std::string, StreamEntry*>> found_entries;
 
-    auto parseID = [] (const std::string &s, StreamID &id) {
-        if (const auto index = s.find('-'); index != std::string::npos) {
+    auto parseStrID = [] (const std::string &s, StreamID &id) {
+        if (s == "-") {
+            id.first = id.second = 0;
+        } else if (s == "+") {
+            id.first = id.second = LLONG_MAX;
+        } else if (const auto index = s.find('-'); index != std::string::npos) {
             id.first = std::stoll(s.substr(0, index));
             id.second = std::stoll(s.substr(index + 1));
         } else {
@@ -197,8 +201,8 @@ std::vector<std::pair<std::string, StreamValue::StreamEntry*>> StreamValue::getE
     };
 
     StreamID startID{0, 0}, endID{0, LLONG_MAX};
-    parseID(start, startID);
-    parseID(end, endID);
+    parseStrID(start, startID);
+    parseStrID(end, endID);
 
     const auto itStart = entries.lower_bound(startID);
     const auto itEnd = entries.upper_bound(endID);
