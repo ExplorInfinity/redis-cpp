@@ -13,6 +13,8 @@
 enum class ValueType { NIL, String, Stream, List };
 inline std::vector<std::string> ValueTypeStringMap = { "nil", "string", "stream", "list" };
 
+using ll = long long;
+
 class Value {
 protected:
     bool expires = false;
@@ -75,7 +77,7 @@ public:
     std::string id;
     std::unordered_map<std::string, std::string> kv_pairs;
 
-    static std::pair<int, int> parseStreamID(const std::string &s);
+    static std::pair<ll, ll> parseStreamID(const std::string &s);
 
     StreamValue() = default;
     explicit StreamValue(std::string id);
@@ -89,7 +91,7 @@ public:
 
 class Storage {
     std::unordered_map<std::string, std::unique_ptr<Value>> kvStorage;
-    static std::pair<int, int> lastStreamID;
+    static std::pair<ll, ll> lastStreamID;
 public:
     /* SET functions */
     template <class ValueClass>
@@ -140,10 +142,11 @@ public:
     std::string LPOP(const std::string &key);
 
     /* Stream Helper functions */
-    static void setCurrStreamID(int ms, int sq);
-    static void setCurrStreamID(std::pair<int, int> id);
-    [[nodiscard]] static bool isValidStreamID(int ms, int sq);
-    [[nodiscard]] static bool isValidStreamID(const std::pair<int, int> &id);
+    static ll getValidStreamIDSqNum(ll ms);
+    static void setCurrStreamID(ll ms, ll sq);
+    static void setCurrStreamID(std::pair<ll, ll> id);
+    [[nodiscard]] static bool isValidStreamID(ll ms, ll sq);
+    [[nodiscard]] static bool isValidStreamID(const std::pair<ll, ll> &id);
 
     [[nodiscard]] std::optional<ValueType> getType(const std::string &key) const;
 };

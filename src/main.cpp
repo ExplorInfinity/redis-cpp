@@ -119,9 +119,11 @@ void handleCmd(const std::string &input, const int client_fd) {
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "xadd") {
         const auto &key = args[1].getString();
-        const auto id = args[2].getString();
+        auto id = args[2].getString();
+        const auto parsedID = StreamValue::parseStreamID(id);
+        id = std::format("{}-{}", parsedID.first, parsedID.second);
 
-        if (!Storage::isValidStreamID(StreamValue::parseStreamID(id))) {
+        if (!Storage::isValidStreamID(parsedID)) {
             const std::string response = RESP::encodeIntoSimpleError(
                 id == "0-0" ?
                 "ERR The ID specified in XADD must be greater than 0-0" :

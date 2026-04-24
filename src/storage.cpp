@@ -7,6 +7,8 @@
 #include <functional>
 #include <memory>
 
+#include "timer.h"
+
 #define debug 0
 
 void Storage::appendToList(const std::string &key, const std::string &value, const bool prepend) {
@@ -94,28 +96,33 @@ std::string Storage::LPOP(const std::string &key) {
     return temp;
 }
 
+ll Storage::getValidStreamIDSqNum(const ll ms) {
+    const auto [lms, lsq] = Storage::lastStreamID;
+    return lms > ms ? -1 : (lsq + 1) * (lms == ms);
+}
+
 bool Storage::containsList(const std::string &key) const {
     const auto it = kvStorage.find(key);
     return (it != kvStorage.end() && it->second->getType() == ValueType::List && !dynamic_cast<ListValue*>(it->second.get())->values.empty());
 }
 
-std::pair<int, int> Storage::lastStreamID{};
+std::pair<ll, ll> Storage::lastStreamID{};
 
-void Storage::setCurrStreamID(const int ms, const int sq) {
+void Storage::setCurrStreamID(const ll ms, const ll sq) {
     lastStreamID.first = ms;
     lastStreamID.second = sq;
 }
 
-void Storage::setCurrStreamID(std::pair<int, int> id) {
+void Storage::setCurrStreamID(std::pair<ll, ll> id) {
     lastStreamID = std::move(id);
 }
 
-bool Storage::isValidStreamID(const int ms, const int sq) {
+bool Storage::isValidStreamID(const ll ms, const ll sq) {
     const auto [lms, lsq] = lastStreamID;
     return (ms > lms || (ms == lms && sq > lsq));
 }
 
-bool Storage::isValidStreamID(const std::pair<int, int> &id) {
+bool Storage::isValidStreamID(const std::pair<ll, ll> &id) {
     return isValidStreamID(id.first, id.second);
 }
 
@@ -128,7 +135,27 @@ std::optional<ValueType> Storage::getType(const std::string &key) const {
     return it->second->getType();
 }
 
-std::pair<int, int> StreamValue::parseStreamID(const std::string &s) {
+std::pair<ll, ll> StreamValue::parseStreamID(const std::string &s) {
+    ll ms, sq;
+
+    if (s == "*") {
+        ms = getCurrTimeInMilliSecs();
+        sq = Storage::getValidStreamIDSqNum(ms);
+        return { ms, sq };
+    }
+
     const auto index = s.find('-');
-    return { std::stoi(s.substr(0, index)), std::stoi(s.substr(index + 1)) };
+    if (index == std::string::npos) {
+        ms = std::stoll(s);
+        sq = Storage::getValidStreamIDSqNum(ms);
+        return { ms, sq };
+    }
+
+    const auto msPart = s.substr(0, index);
+    const auto sqPart = s.substr(index + 1);
+
+    ms = (msPart == "*" ? getCurrTimeInMilliSecs() : std::stoll(msPart));
+    sq = (sqPart == "*" || sqPart.empty()) ? Storage::getValidStreamIDSqNum(ms) : std::stoll(sqPart);
+
+    return { ms, sq };
 }
