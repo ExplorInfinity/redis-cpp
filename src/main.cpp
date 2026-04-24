@@ -115,13 +115,13 @@ void handleCmd(const std::string &input, const int client_fd) {
     } else if (cmd == "type") {
         const auto &key = args[1].getString();
         const auto type = storage.getType(key);
-        const std::string response = RESP::encodeIntoSimpleString(type ? ValueTypeStringMap[static_cast<int>(*type)] : "none");
+        const std::string response = RESP::encodeIntoSimpleString(type != ValueType::NIL ? ValueTypeStringMap[static_cast<int>(type)] : "none");
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "xadd") {
         const auto &key = args[1].getString();
         auto id = args[2].getString();
-        const auto parsedID = StreamValue::parseStreamID(id);
-        id = std::format("{}-{}", parsedID.first, parsedID.second);
+        const StreamValue::StreamID parsedID = StreamValue::parseStreamID(id);
+        id = StreamValue::stringifyStreamID(parsedID);
 
         if (!Storage::isValidStreamID(parsedID)) {
             const std::string response = RESP::encodeIntoSimpleError(
@@ -133,13 +133,42 @@ void handleCmd(const std::string &input, const int client_fd) {
             return;
         }
 
-        auto &valueContainer = storage.set<StreamValue>(key, args[2].getString()).get();
+        auto &streamValueRef = (
+            storage.getType(key) == ValueType::NIL ?
+            storage.set<StreamValue>(key, id).get() :
+            storage.get<StreamValue>(key)->get()
+        );
+        auto &entriesRef = streamValueRef.getEntriesMapAtID(parsedID);
         for (int i = 3; i < args.size(); i += 2) {
-            valueContainer.kv_pairs[args[i].getString()] = args[i + 1].getString();
+            entriesRef[args[i].getString()] = args[i + 1].getString();
         }
 
         const std::string response = RESP::encodeIntoBulkString(id);
         send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "xrange") {
+        if (args.size() != 4) {
+            std::cerr << "Invalid number of arguments to XRANGE" << std::endl;
+            std::cerr << "XRANGE <key> <start_id> <end_id>" << std::endl;
+            return;
+        }
+
+        const auto &key = args[1].getString(),
+                   &start = args[2].getString(),
+                   &end = args[3].getString();
+
+        if (auto streamValue = storage.get<StreamValue>(key)) {
+            auto &value = streamValue->get();
+            auto found_entries = value.getEntriesInRange(start, end);
+
+            std::string response = std::format("*{}\r\n", found_entries.size());
+            for (const auto &[id, entry] : found_entries) {
+                response += "*2\r\n";
+                response += RESP::encodeIntoBulkString(id);
+                response += RESP::encodeMapIntoArray(*entry);
+            }
+
+            send(client_fd, response.c_str(), response.size(), 0);
+        }
     }
 }
 

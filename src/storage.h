@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <map>
 #include <unordered_map>
 #include <optional>
 #include <utility>
@@ -46,9 +47,7 @@ public:
     explicit StringValue(std::string value, const bool expires, const float expirationTime)
         : Value(expires, expirationTime), value(std::move(value)) { }
 
-    [[nodiscard]] ValueType getType() const override {
-        return ValueType::String;
-    };
+    [[nodiscard]] ValueType getType() const override { return ValueType::String; };
 };
 
 class ListValue : public Value {
@@ -67,31 +66,44 @@ public:
         values.push_back(std::move(value));
     }
 
-    [[nodiscard]] ValueType getType() const override {
-        return ValueType::List;
-    };
+    [[nodiscard]] ValueType getType() const override { return ValueType::List; };
 };
 
 class StreamValue : public Value {
 public:
-    std::string id;
-    std::unordered_map<std::string, std::string> kv_pairs;
+    using StreamID = std::pair<ll, ll>;
+    using StreamEntry = std::unordered_map<std::string, std::string>;
 
-    static std::pair<ll, ll> parseStreamID(const std::string &s);
+    std::map<StreamID, StreamEntry> entries;
+
+    static StreamID parseStreamID(const std::string &s);
+    static std::string stringifyStreamID(const StreamID &id);
 
     StreamValue() = default;
-    explicit StreamValue(std::string id);
-    explicit StreamValue(std::string id, bool expires, float expirationTime);
 
-    [[nodiscard]] ValueType getType() const override {
-        return ValueType::Stream;
+    explicit StreamValue(const std::string &id)
+    {
+        setID(parseStreamID(id));
     };
+
+    explicit StreamValue(const std::string &id, const bool expires, const float expirationTime)
+        : Value(expires, expirationTime)
+    {
+        setID(parseStreamID(id));
+    };
+
+    [[nodiscard]] ValueType getType() const override { return ValueType::Stream; };
+
+    StreamEntry& setID(const StreamID &id);
+    StreamEntry& getEntriesMapAtID(const StreamID &id);
+
+    std::vector<std::pair<std::string, StreamEntry*>> getEntriesInRange(const std::string &start, const std::string &end);
 };
 
 
 class Storage {
     std::unordered_map<std::string, std::unique_ptr<Value>> kvStorage;
-    static std::pair<ll, ll> lastStreamID;
+    static StreamValue::StreamID lastStreamID;
 public:
     /* SET functions */
     template <class ValueClass>
@@ -144,25 +156,11 @@ public:
     /* Stream Helper functions */
     static ll getValidStreamIDSqNum(ll ms);
     static void setCurrStreamID(ll ms, ll sq);
-    static void setCurrStreamID(std::pair<ll, ll> id);
+    static void setCurrStreamID(const StreamValue::StreamID &id);
     [[nodiscard]] static bool isValidStreamID(ll ms, ll sq);
     [[nodiscard]] static bool isValidStreamID(const std::pair<ll, ll> &id);
 
-    [[nodiscard]] std::optional<ValueType> getType(const std::string &key) const;
+    [[nodiscard]] ValueType getType(const std::string &key) const;
 };
-
-inline StreamValue::StreamValue(std::string id)
-    : id(std::move(id))
-{
-    const auto [curr_ms, curr_sq] = parseStreamID(this->id);
-    Storage::setCurrStreamID(curr_ms, curr_sq);
-}
-
-inline StreamValue::StreamValue(std::string id, const bool expires, const float expirationTime)
-        : Value(expires, expirationTime), id(std::move(id))
-{
-    const auto [curr_ms, curr_sq] = parseStreamID(this->id);
-    Storage::setCurrStreamID(curr_ms, curr_sq);
-}
 
 inline Storage storage;

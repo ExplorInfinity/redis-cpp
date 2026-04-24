@@ -148,6 +148,15 @@ std::string RESP::encodeIntoArray(const std::vector<std::string> &v) {
     return s;
 }
 
+std::string RESP::encodeMapIntoArray(const std::unordered_map<std::string, std::string> &mp) {
+    std::string s = std::format("*{}\r\n", mp.size() * 2);
+    for (const auto &[key, value] : mp) {
+        s += encodeIntoBulkString(key);
+        s += encodeIntoBulkString(value);
+    }
+    return s;
+}
+
 std::string RESP::encodeIntoSimpleError(const std::string &s) {
     return std::format("-{}\r\n", s);
 }

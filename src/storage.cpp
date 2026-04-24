@@ -6,6 +6,7 @@
 #include <optional>
 #include <functional>
 #include <memory>
+#include <climits>
 
 #include "timer.h"
 
@@ -106,15 +107,20 @@ bool Storage::containsList(const std::string &key) const {
     return (it != kvStorage.end() && it->second->getType() == ValueType::List && !dynamic_cast<ListValue*>(it->second.get())->values.empty());
 }
 
-std::pair<ll, ll> Storage::lastStreamID{};
+StreamValue::StreamID Storage::lastStreamID{};
 
 void Storage::setCurrStreamID(const ll ms, const ll sq) {
-    lastStreamID.first = ms;
-    lastStreamID.second = sq;
+    auto &[lms, lsq] = lastStreamID;
+    if (ms > lms) {
+        lms = ms;
+        lsq = 0;
+    } else if (ms == lms && sq > lsq) {
+        lsq = sq;
+    }
 }
 
-void Storage::setCurrStreamID(std::pair<ll, ll> id) {
-    lastStreamID = std::move(id);
+void Storage::setCurrStreamID(const StreamValue::StreamID &id) {
+    setCurrStreamID(id.first, id.second);
 }
 
 bool Storage::isValidStreamID(const ll ms, const ll sq) {
@@ -122,20 +128,20 @@ bool Storage::isValidStreamID(const ll ms, const ll sq) {
     return (ms > lms || (ms == lms && sq > lsq));
 }
 
-bool Storage::isValidStreamID(const std::pair<ll, ll> &id) {
+bool Storage::isValidStreamID(const StreamValue::StreamID &id) {
     return isValidStreamID(id.first, id.second);
 }
 
-std::optional<ValueType> Storage::getType(const std::string &key) const {
+ValueType Storage::getType(const std::string &key) const {
     const auto it = kvStorage.find(key);
 
     if (it == kvStorage.end())
-        return std::nullopt;
+        return ValueType::NIL;
 
     return it->second->getType();
 }
 
-std::pair<ll, ll> StreamValue::parseStreamID(const std::string &s) {
+StreamValue::StreamID StreamValue::parseStreamID(const std::string &s) {
     ll ms, sq;
 
     if (s == "*") {
@@ -158,4 +164,47 @@ std::pair<ll, ll> StreamValue::parseStreamID(const std::string &s) {
     sq = (sqPart == "*" || sqPart.empty()) ? Storage::getValidStreamIDSqNum(ms) : std::stoll(sqPart);
 
     return { ms, sq };
+}
+
+std::string StreamValue::stringifyStreamID(const StreamID &id) {
+    return std::format("{}-{}", id.first, id.second);
+}
+
+StreamValue::StreamEntry& StreamValue::setID(const StreamID &id) {
+    Storage::setCurrStreamID(id);
+    return entries[id];
+}
+
+StreamValue::StreamEntry& StreamValue::getEntriesMapAtID(const StreamID &id) {
+    const auto it = entries.find(id);
+
+    if (it == entries.end())
+        return setID(id);
+
+    return it->second;
+}
+
+std::vector<std::pair<std::string, StreamValue::StreamEntry*>> StreamValue::getEntriesInRange(const std::string &start, const std::string &end) {
+    std::vector<std::pair<std::string, StreamEntry*>> found_entries;
+
+    auto parseID = [] (const std::string &s, StreamID &id) {
+        if (const auto index = s.find('-'); index != std::string::npos) {
+            id.first = std::stoll(s.substr(0, index));
+            id.second = std::stoll(s.substr(index + 1));
+        } else {
+            id.first = std::stoll(s);
+        }
+    };
+
+    StreamID startID{0, 0}, endID{0, LLONG_MAX};
+    parseID(start, startID);
+    parseID(end, endID);
+
+    const auto itStart = entries.lower_bound(startID);
+    const auto itEnd = entries.upper_bound(endID);
+    for (auto it = itStart; it != itEnd; ++it) {
+        found_entries.emplace_back(stringifyStreamID(it->first), &it->second);
+    }
+
+    return found_entries;
 }
