@@ -169,6 +169,32 @@ void handleCmd(const std::string &input, const int client_fd) {
 
             send(client_fd, response.c_str(), response.size(), 0);
         }
+    } else if (cmd == "xread") {
+        if (args.size() != 4) {
+            std::cerr << "Invalid number of arguments to XREAD" << std::endl;
+            std::cerr << "XREAD STREAMS <key> <start_id>" << std::endl;
+            return;
+        }
+
+        const auto &key = args[2].getString();
+        auto start = args[3].getString();
+        auto parsedID = StreamValue::parseStreamID(start);
+        ++parsedID.second;
+        start = StreamValue::stringifyStreamID(parsedID);
+
+        if (auto streamValue = storage.get<StreamValue>(key)) {
+            auto &value = streamValue->get();
+            auto found_entries = value.getEntriesInRange(start, "+");
+
+            std::string response = std::format("*2\r\n{}*{}\r\n", RESP::encodeIntoBulkString(key), found_entries.size());
+            for (const auto &[id, entry] : found_entries) {
+                response += "*2\r\n";
+                response += RESP::encodeIntoBulkString(id);
+                response += RESP::encodeMapIntoArray(*entry);
+            }
+
+            send(client_fd, response.c_str(), response.size(), 0);
+        }
     }
 }
 
