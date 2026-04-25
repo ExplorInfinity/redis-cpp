@@ -186,7 +186,7 @@ void handleCmd(const std::string &input, const int client_fd) {
             auto &value = streamValue->get();
             auto found_entries = value.getEntriesInRange(start, "+");
 
-            std::string response = std::format("*2\r\n{}*{}\r\n", RESP::encodeIntoBulkString(key), found_entries.size());
+            std::string response = std::format("*1\r\n*2\r\n{}*{}\r\n", RESP::encodeIntoBulkString(key), found_entries.size());
             for (const auto &[id, entry] : found_entries) {
                 response += "*2\r\n";
                 response += RESP::encodeIntoBulkString(id);
