@@ -170,31 +170,34 @@ void handleCmd(const std::string &input, const int client_fd) {
             send(client_fd, response.c_str(), response.size(), 0);
         }
     } else if (cmd == "xread") {
-        if (args.size() != 4) {
-            std::cerr << "Invalid number of arguments to XREAD" << std::endl;
-            std::cerr << "XREAD STREAMS <key> <start_id>" << std::endl;
-            return;
-        }
+        const int queries = (static_cast<int>(args.size()) - 2 + 1) / 2;
+        std::vector<std::string> responses;
+        responses.reserve(queries);
+        for (int i = 2; i < queries + 2; i++) {
+            const auto &key = args[i].getString();
+            auto start = args[i + queries].getString();
 
-        const auto &key = args[2].getString();
-        auto start = args[3].getString();
-        auto parsedID = StreamValue::parseStreamID(start);
-        ++parsedID.second;
-        start = StreamValue::stringifyStreamID(parsedID);
+            auto parsedID = StreamValue::parseStreamID(start);
+            ++parsedID.second;
+            start = StreamValue::stringifyStreamID(parsedID);
 
-        if (auto streamValue = storage.get<StreamValue>(key)) {
-            auto &value = streamValue->get();
-            auto found_entries = value.getEntriesInRange(start, "+");
+            if (auto streamValue = storage.get<StreamValue>(key)) {
+                auto &value = streamValue->get();
+                auto found_entries = value.getEntriesInRange(start, "+");
 
-            std::string response = std::format("*1\r\n*2\r\n{}*{}\r\n", RESP::encodeIntoBulkString(key), found_entries.size());
-            for (const auto &[id, entry] : found_entries) {
-                response += "*2\r\n";
-                response += RESP::encodeIntoBulkString(id);
-                response += RESP::encodeMapIntoArray(*entry);
+                std::string response = std::format("*2\r\n{}*{}\r\n", RESP::encodeIntoBulkString(key), found_entries.size());
+                for (const auto &[id, entry] : found_entries) {
+                    response += "*2\r\n";
+                    response += RESP::encodeIntoBulkString(id);
+                    response += RESP::encodeMapIntoArray(*entry);
+                }
+
+                responses.push_back(response);
             }
-
-            send(client_fd, response.c_str(), response.size(), 0);
         }
+
+        const std::string response = RESP::createRawArray(responses);
+        send(client_fd, response.c_str(), response.size(), 0);
     }
 }
 

@@ -53,5 +53,7 @@ namespace RESP {
     std::string encodeIntoArray(const std::vector<std::string> &v);
     std::string encodeMapIntoArray(const std::unordered_map<std::string, std::string> &mp);
     std::string encodeIntoSimpleError(const std::string &s);
+
+    std::string createRawArray(const std::vector<std::string> &v);
 }
 

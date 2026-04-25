@@ -160,3 +160,10 @@ std::string RESP::encodeMapIntoArray(const std::unordered_map<std::string, std::
 std::string RESP::encodeIntoSimpleError(const std::string &s) {
     return std::format("-{}\r\n", s);
 }
+
+std::string RESP::createRawArray(const std::vector<std::string> &v) {
+    std::string s = std::format("*{}\r\n", v.size());
+    for (const auto &value : v)
+        s += value;
+    return s;
+}
