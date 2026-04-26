@@ -22,9 +22,8 @@ using RESP::Token;
 static std::mutex storageMutex;
 static std::condition_variable dataAvailableCV;
 
-static bool MULTI_Enabled = false;
 
-void handleCmd(const std::string &input, const int client_fd) {
+void handleCmd(const std::string &input, const int client_fd, bool &MULTI_Enabled) {
     auto token = RESP::parse(input);
     const auto &cmd = (token.getDataType() == Token::DataType::ARRAY ?  token.getArray()[0].getString() : token.getString());
     const auto &args = token.getArray();
@@ -287,6 +286,7 @@ void handleCmd(const std::string &input, const int client_fd) {
 
 void handle_client(const int client_fd) {
     std::string inputBuffer;
+    bool MULTI_Enabled = false;
 
     char buffer[1024];
     while (true) {
@@ -304,7 +304,7 @@ void handle_client(const int client_fd) {
         printRaw(inputBuffer);
 #endif
 
-        handleCmd(inputBuffer, client_fd);
+        handleCmd(inputBuffer, client_fd, MULTI_Enabled);
         inputBuffer.clear();
     }
 
