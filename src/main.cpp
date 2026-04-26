@@ -268,11 +268,14 @@ void handleCmd(const std::string &input, const int client_fd) {
         MULTI_Enabled = true;
         send(client_fd, Responses::OK, strlen(Responses::OK), 0);
     } else if (cmd == "exec") {
+        std::string response;
         if (!MULTI_Enabled) {
-            std::string response = RESP::encodeIntoSimpleError("ERR EXEC without MULTI");
-            send(client_fd, response.c_str(), response.size(), 0);
+            response += RESP::encodeIntoSimpleError("ERR EXEC without MULTI");
+        } else {
+            response += Responses::EmptyArray;
         }
         MULTI_Enabled = false;
+        send(client_fd, response.c_str(), response.size(), 0);
     }
 }
 

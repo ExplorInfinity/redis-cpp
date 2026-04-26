@@ -8,6 +8,7 @@
 namespace Responses {
     constexpr auto NullBulkString = "$-1\r\n";
     constexpr auto NullArray = "*-1\r\n";
+    constexpr auto EmptyArray = "*0\r\n";
     constexpr auto OK = "+OK\r\n";
     constexpr auto PONG = "+PONG\r\n";
 }
