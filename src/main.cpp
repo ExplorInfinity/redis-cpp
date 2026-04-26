@@ -244,6 +244,24 @@ void handleCmd(const std::string &input, const int client_fd) {
 
         const std::string response = RESP::createRawArray(responses);
         send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "incr") {
+        const auto &key = args[1].getString();
+        std::string response;
+        if (const auto entry = storage.get<StringValue>(key)) {
+            const auto &value = entry->get().value;
+            if (isNumericValue(value)) {
+                ll intVal = std::stoll(value) + 1;
+                storage.set<StringValue>(key, std::to_string(intVal));
+                response += RESP::encodeIntoInt(intVal);
+            } else {
+                response += RESP::encodeIntoSimpleError("ERR value is not an integer or out of range");
+            }
+        } else {
+            storage.set<StringValue>(key, "1");
+            response += ":1\r\n";
+        }
+
+        send(client_fd, response.c_str(), response.size(), 0);
     }
 }
 
