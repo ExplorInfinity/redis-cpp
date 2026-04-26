@@ -262,6 +262,8 @@ void handleCmd(const std::string &input, const int client_fd) {
         }
 
         send(client_fd, response.c_str(), response.size(), 0);
+    } else if (cmd == "multi") {
+        send(client_fd, Responses::OK, strlen(Responses::OK), 0);
     }
 }
 
