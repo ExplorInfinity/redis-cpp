@@ -29,6 +29,12 @@ void handleCmd(const std::string &input, const int client_fd) {
     const auto &cmd = (token.getDataType() == Token::DataType::ARRAY ?  token.getArray()[0].getString() : token.getString());
     const auto &args = token.getArray();
 
+    if (MULTI_Enabled && cmd != "exec") {
+        std::string response = "+QUEUED\r\n";
+        send(client_fd, response.c_str(), response.size(), 0);
+        return;
+    }
+
     if (cmd == "ping") {
         send(client_fd, Responses::PONG, strlen(Responses::PONG), 0);
     } else if (cmd == "echo") {
