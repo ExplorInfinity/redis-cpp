@@ -143,6 +143,8 @@ void handleCmd(const std::string &input, const int client_fd) {
             entriesRef[args[i].getString()] = args[i + 1].getString();
         }
 
+        dataAvailableCV.notify_all();
+
         const std::string response = RESP::encodeIntoBulkString(id);
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "xrange") {
@@ -163,23 +165,54 @@ void handleCmd(const std::string &input, const int client_fd) {
             std::string response = std::format("*{}\r\n", found_entries.size());
             for (const auto &[id, entry] : found_entries) {
                 response += "*2\r\n";
-                response += RESP::encodeIntoBulkString(id);
+                response += RESP::encodeIntoBulkString(StreamValue::stringifyStreamID(*id));
                 response += RESP::encodeMapIntoArray(*entry);
             }
 
             send(client_fd, response.c_str(), response.size(), 0);
         }
     } else if (cmd == "xread") {
-        const int queries = (static_cast<int>(args.size()) - 2 + 1) / 2;
+        int cursor = 2;
         std::vector<std::string> responses;
-        responses.reserve(queries);
-        for (int i = 2; i < queries + 2; i++) {
-            const auto &key = args[i].getString();
-            auto start = args[i + queries].getString();
 
-            auto parsedID = StreamValue::parseStreamID(start);
-            ++parsedID.second;
-            start = StreamValue::stringifyStreamID(parsedID);
+        if (args[1].getString() == "block") {
+            cursor += 2;
+            ll time = std::stoll(args[2].getString());
+
+            std::unique_lock lock(storageMutex);
+
+            const auto &key = args[cursor].getString();
+            const auto start = StreamValue::incrementID(args[cursor + 1].getString());
+
+            const auto predicate = [&] {
+                if (const auto streamValue = storage.get<StreamValue>(key)) {
+                    auto &value = streamValue->get();
+                    return !value.getEntriesInRange(start, "+").empty();
+                }
+
+                return false;
+            };
+
+            if (time != 0) {
+                auto expiry = std::chrono::steady_clock::now() + std::chrono::milliseconds(time);
+                const bool success = dataAvailableCV.wait_until(lock, expiry, predicate);
+
+                if (!success) {
+                    send(client_fd, Responses::NullArray, strlen(Responses::NullArray), 0);
+                    return;
+                }
+            } else {
+                dataAvailableCV.wait(lock, predicate);
+            }
+
+        }
+
+        const int queries = (static_cast<int>(args.size()) - cursor + 1) / 2;
+        responses.reserve(queries);
+
+        for (int i = cursor; i < queries + cursor; i++) {
+            const auto &key = args[i].getString();
+            const auto start = StreamValue::incrementID(args[i + queries].getString());
 
             if (auto streamValue = storage.get<StreamValue>(key)) {
                 auto &value = streamValue->get();
@@ -188,7 +221,7 @@ void handleCmd(const std::string &input, const int client_fd) {
                 std::string response = std::format("*2\r\n{}*{}\r\n", RESP::encodeIntoBulkString(key), found_entries.size());
                 for (const auto &[id, entry] : found_entries) {
                     response += "*2\r\n";
-                    response += RESP::encodeIntoBulkString(id);
+                    response += RESP::encodeIntoBulkString(StreamValue::stringifyStreamID(*id));
                     response += RESP::encodeMapIntoArray(*entry);
                 }
 

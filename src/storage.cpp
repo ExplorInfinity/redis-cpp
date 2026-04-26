@@ -170,6 +170,15 @@ std::string StreamValue::stringifyStreamID(const StreamID &id) {
     return std::format("{}-{}", id.first, id.second);
 }
 
+std::string StreamValue::incrementID(const std::string &s) {
+    const auto index = s.find('-');
+
+    if (index == std::string::npos)
+        return std::to_string(std::stoll(s) + 1ll);
+
+    return s.substr(0, index + 1) + std::to_string(std::stoll(s.substr(index + 1)) + 1ll);
+}
+
 StreamValue::StreamEntry& StreamValue::setID(const StreamID &id) {
     Storage::setCurrStreamID(id);
     return entries[id];
@@ -184,8 +193,8 @@ StreamValue::StreamEntry& StreamValue::getEntriesMapAtID(const StreamID &id) {
     return it->second;
 }
 
-std::vector<std::pair<std::string, StreamValue::StreamEntry*>> StreamValue::getEntriesInRange(const std::string &start, const std::string &end) {
-    std::vector<std::pair<std::string, StreamEntry*>> found_entries;
+std::vector<std::pair<const StreamValue::StreamID*, StreamValue::StreamEntry*>> StreamValue::getEntriesInRange(const std::string &start, const std::string &end) {
+    std::vector<std::pair<const StreamID*, StreamEntry*>> found_entries;
 
     auto parseStrID = [] (const std::string &s, StreamID &id) {
         if (s == "-") {
@@ -207,7 +216,7 @@ std::vector<std::pair<std::string, StreamValue::StreamEntry*>> StreamValue::getE
     const auto itStart = entries.lower_bound(startID);
     const auto itEnd = entries.upper_bound(endID);
     for (auto it = itStart; it != itEnd; ++it) {
-        found_entries.emplace_back(stringifyStreamID(it->first), &it->second);
+        found_entries.emplace_back(&it->first, &it->second);
     }
 
     return found_entries;

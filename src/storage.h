@@ -78,6 +78,7 @@ public:
 
     static StreamID parseStreamID(const std::string &s);
     static std::string stringifyStreamID(const StreamID &id);
+    static std::string incrementID(const std::string &s);
 
     StreamValue() = default;
 
@@ -97,7 +98,7 @@ public:
     StreamEntry& setID(const StreamID &id);
     StreamEntry& getEntriesMapAtID(const StreamID &id);
 
-    std::vector<std::pair<std::string, StreamEntry*>> getEntriesInRange(const std::string &start, const std::string &end);
+    std::vector<std::pair<const StreamID*, StreamEntry*>> getEntriesInRange(const std::string &start, const std::string &end);
 };
 
 
