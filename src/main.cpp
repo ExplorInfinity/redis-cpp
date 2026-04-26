@@ -19,8 +19,10 @@
 
 using RESP::Token;
 
-std::mutex storageMutex;
-std::condition_variable dataAvailableCV;
+static std::mutex storageMutex;
+static std::condition_variable dataAvailableCV;
+
+static bool MULTI_Enabled = false;
 
 void handleCmd(const std::string &input, const int client_fd) {
     auto token = RESP::parse(input);
@@ -263,7 +265,14 @@ void handleCmd(const std::string &input, const int client_fd) {
 
         send(client_fd, response.c_str(), response.size(), 0);
     } else if (cmd == "multi") {
+        MULTI_Enabled = true;
         send(client_fd, Responses::OK, strlen(Responses::OK), 0);
+    } else if (cmd == "exec") {
+        if (!MULTI_Enabled) {
+            std::string response = RESP::encodeIntoSimpleError("ERR EXEC without MULTI");
+            send(client_fd, response.c_str(), response.size(), 0);
+        }
+        MULTI_Enabled = false;
     }
 }
 
