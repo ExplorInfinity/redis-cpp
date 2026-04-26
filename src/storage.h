@@ -98,6 +98,7 @@ public:
     StreamEntry& setID(const StreamID &id);
     StreamEntry& getEntriesMapAtID(const StreamID &id);
 
+    std::pair<const StreamID*, StreamEntry*> getLastestEntry();
     std::vector<std::pair<const StreamID*, StreamEntry*>> getEntriesInRange(const std::string &start, const std::string &end);
 };
 
@@ -158,10 +159,12 @@ public:
     static ll getValidStreamIDSqNum(ll ms);
     static void setCurrStreamID(ll ms, ll sq);
     static void setCurrStreamID(const StreamValue::StreamID &id);
+    static StreamValue::StreamID getLastStreamID();
     [[nodiscard]] static bool isValidStreamID(ll ms, ll sq);
     [[nodiscard]] static bool isValidStreamID(const std::pair<ll, ll> &id);
 
     [[nodiscard]] ValueType getType(const std::string &key) const;
+
 };
 
 inline Storage storage;

@@ -182,12 +182,16 @@ void handleCmd(const std::string &input, const int client_fd) {
             std::unique_lock lock(storageMutex);
 
             const auto &key = args[cursor].getString();
-            const auto start = StreamValue::incrementID(args[cursor + 1].getString());
+            const auto &id_string = args[cursor + 1].getString();
+            const auto lastStreamID = Storage::getLastStreamID();
+            bool waitForLatest = id_string == "$";
+
+            const auto start = (waitForLatest ? "" : StreamValue::incrementID(args[cursor + 1].getString()));
 
             const auto predicate = [&] {
                 if (const auto streamValue = storage.get<StreamValue>(key)) {
                     auto &value = streamValue->get();
-                    return !value.getEntriesInRange(start, "+").empty();
+                    return (waitForLatest ? *value.getLastestEntry().first > lastStreamID : !value.getEntriesInRange(start, "+").empty());
                 }
 
                 return false;
@@ -205,6 +209,15 @@ void handleCmd(const std::string &input, const int client_fd) {
                 dataAvailableCV.wait(lock, predicate);
             }
 
+            if (waitForLatest) {
+                std::string response = std::format("*1\r\n*2\r\n{}*1\r\n*2\r\n", RESP::encodeIntoBulkString(key));
+                const auto [id, entries] = storage.get<StreamValue>(key)->get().getLastestEntry();
+                response += RESP::encodeIntoBulkString(StreamValue::stringifyStreamID(*id));
+                response += RESP::encodeMapIntoArray(*entries);
+
+                send(client_fd, response.c_str(), response.size(), 0);
+                return;
+            }
         }
 
         const int queries = (static_cast<int>(args.size()) - cursor + 1) / 2;

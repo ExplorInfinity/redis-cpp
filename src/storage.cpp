@@ -141,6 +141,10 @@ ValueType Storage::getType(const std::string &key) const {
     return it->second->getType();
 }
 
+StreamValue::StreamID Storage::getLastStreamID() {
+    return lastStreamID;
+}
+
 StreamValue::StreamID StreamValue::parseStreamID(const std::string &s) {
     ll ms, sq;
 
@@ -191,6 +195,11 @@ StreamValue::StreamEntry& StreamValue::getEntriesMapAtID(const StreamID &id) {
         return setID(id);
 
     return it->second;
+}
+
+std::pair<const StreamValue::StreamID*, StreamValue::StreamEntry*> StreamValue::getLastestEntry() {
+    const auto it = --entries.end();
+    return { &it->first, &it->second };
 }
 
 std::vector<std::pair<const StreamValue::StreamID*, StreamValue::StreamEntry*>> StreamValue::getEntriesInRange(const std::string &start, const std::string &end) {
