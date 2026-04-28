@@ -343,4 +343,5 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "INCR", Commands::INCR },
     { "MULTI", Commands::MULTI },
     { "EXEC", Commands::EXEC },
+    { "DISCARD", Commands::DISCARD },
 };
