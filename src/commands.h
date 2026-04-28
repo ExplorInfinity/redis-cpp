@@ -31,6 +31,7 @@ namespace Commands {
     std::string MULTI(const TokenArray &args);
     std::string EXEC(const TokenArray &args);
     std::string DISCARD(const TokenArray& args);
+    std::string INFO(const TokenArray& args);
 };
 
 extern std::unordered_map<std::string, CmdFunction> commands;

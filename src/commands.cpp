@@ -330,6 +330,13 @@ std::string Commands::DISCARD(const TokenArray&) {
     return RESP::Responses::OK;
 }
 
+std::string Commands::INFO(const TokenArray &args) {
+    if (args.size() >= 2 && args[1].getString() == "replication")
+        return RESP::encodeIntoBulkString("role:master");
+
+    return RESP::Responses::EMPTY_BULK_STRING;
+}
+
 std::unordered_map<std::string, CmdFunction> commands = {
     { "PING", Commands::PING },
     { "ECHO", Commands::ECHO },
@@ -349,4 +356,5 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "MULTI", Commands::MULTI },
     { "EXEC", Commands::EXEC },
     { "DISCARD", Commands::DISCARD },
+    { "INFO", Commands::INFO },
 };

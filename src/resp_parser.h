@@ -15,6 +15,7 @@ namespace RESP {
         constexpr std::string NULL_ARRAY = "*-1\r\n";
         constexpr std::string EMPTY_ARRAY = "*0\r\n";
         constexpr std::string NULL_BULK_STRING = "$-1\r\n";
+        constexpr std::string EMPTY_BULK_STRING = "$0\r\n";
     };
 
     class Token {
