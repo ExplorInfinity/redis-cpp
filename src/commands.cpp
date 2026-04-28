@@ -1,7 +1,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <sys/socket.h>
-#include <iostream>
+#include <ranges>
+#include <algorithm>
 
 #include "storage.h"
 #include "commands.h"
@@ -13,12 +14,16 @@ static std::condition_variable dataAvailableCV;
 static thread_local bool MULTI_Enabled = false;
 static std::vector<std::pair<std::string, TokenArray>> queuedCmds;
 
+static std::vector<std::string> QueueExcluded = {
+    "EXEC", "DISCARD"
+};
+
 void Commands::handleCmd(const int client_fd, const std::string &input) {
     auto token = RESP::parse(input);
     const auto cmd = convertToUpperCase(token.getDataType() == Token::DataType::ARRAY ? token.getArray()[0].getString() : token.getString());
     const auto &args = token.getArray();
 
-    if (MULTI_Enabled && cmd != "EXEC") {
+    if (MULTI_Enabled && std::ranges::find(QueueExcluded, cmd) == QueueExcluded.end()) {
         queuedCmds.emplace_back(cmd, args);
         send(client_fd, RESP::Responses::QUEUED.c_str(), RESP::Responses::QUEUED.size(), 0);
         return;
