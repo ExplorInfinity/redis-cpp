@@ -12,11 +12,10 @@ static std::mutex storageMutex;
 static std::condition_variable dataAvailableCV;
 
 static thread_local bool MULTI_Enabled = false;
-static std::vector<std::pair<std::string, TokenArray>> queuedCmds;
+static thread_local std::vector<std::pair<std::string, TokenArray>> queuedCmds;
 
-static std::vector<std::string> QueueExcluded = {
-    "EXEC", "DISCARD"
-};
+static const std::vector<std::string> QueueExcluded =
+    { "EXEC", "DISCARD" };
 
 void Commands::handleCmd(const int client_fd, const std::string &input) {
     auto token = RESP::parse(input);
