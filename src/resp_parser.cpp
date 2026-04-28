@@ -26,15 +26,15 @@ std::vector<RESP::Token> &RESP::Token::getArray() {
     return m_arr;
 }
 
-const long long& RESP::Token::getInt() const {
+long long RESP::Token::getInt() const {
     return m_int;
 }
 
-const std::string& RESP::Token::getString() const {
+std::string RESP::Token::getString() const {
     return m_string;
 }
 
-const std::vector<RESP::Token> &RESP::Token::getArray() const {
+std::vector<RESP::Token> RESP::Token::getArray() const {
     return m_arr;
 }
 

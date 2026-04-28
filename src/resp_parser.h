@@ -5,16 +5,17 @@
 #include <format>
 #include <unordered_map>
 
-namespace Responses {
-    constexpr auto NullBulkString = "$-1\r\n";
-    constexpr auto NullArray = "*-1\r\n";
-    constexpr auto EmptyArray = "*0\r\n";
-    constexpr auto OK = "+OK\r\n";
-    constexpr auto PONG = "+PONG\r\n";
-}
-
 namespace RESP {
     constexpr std::string CRLF = "\r\n";
+
+    namespace Responses {
+        constexpr std::string OK = "+OK\r\n";
+        constexpr std::string PONG = "+PONG\r\n";
+        constexpr std::string QUEUED = "+QUEUED\r\n";
+        constexpr std::string NULL_ARRAY = "*-1\r\n";
+        constexpr std::string EMPTY_ARRAY = "*0\r\n";
+        constexpr std::string NULL_BULK_STRING = "$-1\r\n";
+    };
 
     class Token {
     public:
@@ -35,9 +36,9 @@ namespace RESP {
         std::string& getString();
         std::vector<Token>& getArray();
 
-        [[nodiscard]] const long long& getInt() const;
-        [[nodiscard]] const std::string& getString() const;
-        [[nodiscard]] const std::vector<Token>& getArray() const;
+        [[nodiscard]] long long getInt() const;
+        [[nodiscard]] std::string getString() const;
+        [[nodiscard]] std::vector<Token> getArray() const;
     };
 
     Token parse(const std::string &s);

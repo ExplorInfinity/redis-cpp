@@ -22,5 +22,28 @@ void printRaw(const std::string &s) {
 }
 
 bool isNumericValue(const std::string &s) {
-    return !s.empty() && std::ranges::all_of(s, ::isdigit);
+    try {
+        size_t pos;
+        std::stoll(s, &pos);
+        return pos == s.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+std::string convertToUpperCase(std::string s) {
+    std::ranges::transform(s, s.begin(), [] (unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+    return s;
+}
+
+bool isDouble(const std::string &s) {
+    try {
+        size_t pos;
+        std::stod(s, &pos);
+        return pos == s.size();
+    } catch (...) {
+        return false;
+    }
 }

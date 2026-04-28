@@ -54,13 +54,13 @@ std::vector<std::string> Storage::getListCopy(const std::string &key, int start,
     return res;
 }
 
-std::size_t Storage::sizeOfList(const std::string &key) const {
+int Storage::sizeOfList(const std::string &key) const {
     const auto it = kvStorage.find(key);
     if (it == kvStorage.end() || it->second->getType() != ValueType::List)
         return 0;
 
     const auto *list = dynamic_cast<ListValue*>(it->second.get());
-    return list->values.size();
+    return static_cast<int>(list->values.size());
 }
 
 std::string Storage::RPOP(const std::string &key) {

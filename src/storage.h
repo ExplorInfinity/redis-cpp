@@ -150,7 +150,7 @@ public:
     /* List Helper functions */
     void appendToList(const std::string &key, const std::string &value, bool prepend = false);
     [[nodiscard]] std::vector<std::string> getListCopy(const std::string &key, int start, int stop) const;
-    [[nodiscard]] std::size_t sizeOfList(const std::string &key) const;
+    [[nodiscard]] int sizeOfList(const std::string &key) const;
     [[nodiscard]] bool containsList(const std::string &key) const;
     std::string RPOP(const std::string &key);
     std::string LPOP(const std::string &key);
