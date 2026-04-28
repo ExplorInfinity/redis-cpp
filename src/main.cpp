@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
     int PORT = 6379;
     for (int i = 0; i < argc; i++) {
-        if (argv[i] == "--port" && i + 1 < argc && isNumericValue(argv[i + 1]))
+        if (std::string(argv[i]) == "--port" && i + 1 < argc && isNumericValue(argv[i + 1]))
             PORT = std::stoi(argv[i + 1]);
     }
 
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     server_addr.sin_port = htons(PORT);
 
     if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) != 0) {
-        std::cerr << "Failed to bind to port 6379\n";
+        std::cerr << std::format("Failed to bind to port {}\n", PORT);
         return 1;
     }
 
