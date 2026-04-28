@@ -317,6 +317,14 @@ std::string Commands::EXEC(const TokenArray &) {
     return RESP::createRawArray(responses);
 }
 
+std::string Commands::DISCARD(const TokenArray&) {
+    if (!MULTI_Enabled)
+        return RESP::encodeIntoSimpleError("ERR DISCARD without MULTI");
+
+    queuedCmds.clear();
+    return RESP::Responses::OK;
+}
+
 std::unordered_map<std::string, CmdFunction> commands = {
     { "PING", Commands::PING },
     { "ECHO", Commands::ECHO },
