@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <cstdlib>
 #include <string>
@@ -52,8 +53,11 @@ int main(int argc, char **argv) {
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
 
-    // Testing String
-    // auto token = RESP::parse("*4\r\n:10001\r\n+Hello Bye!\r\n$12\r\nMaybe Maybe!\r\n*2\r\n+Test 1\r\n+Test 2\r\n");
+    int PORT = 6379;
+    for (int i = 0; i < argc; i++) {
+        if (argv[i] == "--port" && i + 1 < argc && isNumericValue(argv[i + 1]))
+            PORT = std::stoi(argv[i + 1]);
+    }
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -70,7 +74,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in server_addr{};
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(6379);
+    server_addr.sin_port = htons(PORT);
 
     if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) != 0) {
         std::cerr << "Failed to bind to port 6379\n";
