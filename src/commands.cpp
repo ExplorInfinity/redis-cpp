@@ -321,6 +321,7 @@ std::string Commands::DISCARD(const TokenArray&) {
     if (!MULTI_Enabled)
         return RESP::encodeIntoSimpleError("ERR DISCARD without MULTI");
 
+    MULTI_Enabled = false;
     queuedCmds.clear();
     return RESP::Responses::OK;
 }
