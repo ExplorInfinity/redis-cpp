@@ -47,3 +47,23 @@ bool isDouble(const std::string &s) {
         return false;
     }
 }
+
+bool isFlag(const std::string &s) {
+    return (s.size() > 2 && s.substr(0, 2) == "--");
+}
+
+StringMap parseProgramArgs(int argc, char **argv) {
+    StringMap args;
+
+    for (int i = 0; i < argc; i++) {
+        const std::string curr = argv[i];
+        if (isFlag(curr)) {
+            if (i + 1 < argc && !isFlag(std::string(argv[i + 1]))) {
+                args[curr] = argv[i + 1];
+                i++;
+            } else args[curr] = "true";
+        }
+    }
+
+    return args;
+}

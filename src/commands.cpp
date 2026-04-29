@@ -71,8 +71,9 @@ std::string Commands::LPUSH(const TokenArray &args) {
     for (int i = 2; i < args.size(); i++)
         storage.appendToList(key, args[i].getString(), true);
 
+    const auto size = storage.sizeOfList(key);
     dataAvailableCV.notify_all();
-    return RESP::encodeIntoInt(storage.sizeOfList(key));
+    return RESP::encodeIntoInt(size);
 }
 
 std::string Commands::RPUSH(const TokenArray &args) {
@@ -80,8 +81,9 @@ std::string Commands::RPUSH(const TokenArray &args) {
     for (int i = 2; i < args.size(); i++)
         storage.appendToList(key, args[i].getString(), false);
 
+    const auto size = storage.sizeOfList(key);
     dataAvailableCV.notify_all();
-    return RESP::encodeIntoInt(storage.sizeOfList(key));
+    return RESP::encodeIntoInt(size);
 }
 
 std::string Commands::LRANGE(const TokenArray &args) {
@@ -332,7 +334,7 @@ std::string Commands::DISCARD(const TokenArray&) {
 
 std::string Commands::INFO(const TokenArray &args) {
     if (args.size() >= 2 && args[1].getString() == "replication")
-        return RESP::encodeIntoBulkString("role:master");
+        return RESP::encodeIntoBulkString((ServerInfo.contains("--replicaof") ? "role:slave" : "role:master"));
 
     return RESP::Responses::EMPTY_BULK_STRING;
 }
@@ -358,3 +360,9 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "DISCARD", Commands::DISCARD },
     { "INFO", Commands::INFO },
 };
+
+StringMap ServerInfo;
+
+void setServerInfo(const int argc, char **argv) {
+    ServerInfo = parseProgramArgs(argc, argv);
+}

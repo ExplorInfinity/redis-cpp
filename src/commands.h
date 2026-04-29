@@ -5,10 +5,12 @@
 #include <unordered_map>
 
 #include "resp_parser.h"
+#include "utils.h"
 
 using RESP::Token;
 using TokenArray = std::vector<Token>;
 using CmdFunction = std::string(*)(const TokenArray &);
+using StringMap = std::unordered_map<std::string, std::string>;
 
 namespace Commands {
     void handleCmd(int client_fd, const std::string &input);
@@ -35,3 +37,6 @@ namespace Commands {
 };
 
 extern std::unordered_map<std::string, CmdFunction> commands;
+extern StringMap ServerInfo;
+
+void setServerInfo(int argc, char **argv);

@@ -9,11 +9,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
 
 #include "commands.h"
-#include "resp_parser.h"
 #include "utils.h"
 #include "storage.h"
 
@@ -24,13 +21,9 @@ void handle_client(const int client_fd) {
 
     char buffer[1024];
     while (true) {
-        auto bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-        if (bytes_received <= 0) {
-#if debug
-        std::cerr << "Client Disconnected\n";
-#endif
+        const auto bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0)
             break;
-        }
 
         inputBuffer.append(buffer, bytes_received);
 
@@ -43,7 +36,7 @@ void handle_client(const int client_fd) {
     }
 
 #if debug
-    std::cout << "Client Disconnected\n";
+    std::cerr << "Client Disconnected\n";
 #endif
 
     close(client_fd);
@@ -54,10 +47,10 @@ int main(int argc, char **argv) {
     std::cerr << std::unitbuf;
 
     int PORT = 6379;
-    for (int i = 0; i < argc; i++) {
-        if (std::string(argv[i]) == "--port" && i + 1 < argc && isNumericValue(argv[i + 1]))
-            PORT = std::stoi(argv[i + 1]);
-    }
+    setServerInfo(argc, argv);
+
+    if (ServerInfo.contains("--port"))
+        PORT = std::stoi(ServerInfo["--port"]);
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {

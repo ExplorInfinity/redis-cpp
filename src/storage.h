@@ -161,7 +161,7 @@ public:
     static void setCurrStreamID(const StreamValue::StreamID &id);
     static StreamValue::StreamID getLastStreamID();
     [[nodiscard]] static bool isValidStreamID(ll ms, ll sq);
-    [[nodiscard]] static bool isValidStreamID(const std::pair<ll, ll> &id);
+    [[nodiscard]] static bool isValidStreamID(const StreamValue::StreamID &id);
 
     [[nodiscard]] ValueType getType(const std::string &key) const;
 
