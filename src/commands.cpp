@@ -334,7 +334,11 @@ std::string Commands::DISCARD(const TokenArray&) {
 
 std::string Commands::INFO(const TokenArray &args) {
     if (args.size() >= 2 && args[1].getString() == "replication")
-        return RESP::encodeIntoBulkString((ServerInfo.contains("--replicaof") ? "role:slave" : "role:master"));
+        return RESP::encodePairsIntoBulkString({
+            { "role",  (ServerInfo.contains("--replicaof") ? "slave" : "master") },
+            { "master_replid", "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb" },
+            { "master_repl_offset",  "0" },
+        });
 
     return RESP::Responses::EMPTY_BULK_STRING;
 }

@@ -58,5 +58,6 @@ namespace RESP {
     std::string encodeIntoSimpleError(const std::string &s);
 
     std::string createRawArray(const std::vector<std::string> &v);
+    std::string encodePairsIntoBulkString(const std::vector<std::pair<std::string, std::string>> &kv_pairs);
 }
 

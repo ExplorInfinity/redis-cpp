@@ -167,3 +167,10 @@ std::string RESP::createRawArray(const std::vector<std::string> &v) {
         s += value;
     return s;
 }
+
+std::string RESP::encodePairsIntoBulkString(const std::vector<std::pair<std::string, std::string>> &kv_pairs) {
+    std::string response;
+    for (const auto &[key, value] : kv_pairs)
+        response += std::format("{}:{}\r\n", key, value);
+    return encodeIntoBulkString(response);
+}
