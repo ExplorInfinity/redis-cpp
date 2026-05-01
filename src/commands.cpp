@@ -348,7 +348,7 @@ std::string Commands::REPLCONF(const TokenArray &args) {
 }
 
 std::string Commands::PSYNC(const TokenArray &args) {
-    return RESP::Responses::OK;
+    return RESP::encodeIntoSimpleString(std::format("FULLRESYNC {} 0\r\n", "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"));
 }
 
 std::unordered_map<std::string, CmdFunction> commands = {
