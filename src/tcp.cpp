@@ -44,14 +44,13 @@ void TCP::connectToServer(std::string IP, int PORT) {
     send(sock, REPLCONF.c_str(), REPLCONF.size(), 0);
     read(sock, buffer, sizeof(buffer));
 
-    const std::string PSYNC = RESP::encodeIntoArray({ "REPLCONF", "capa", "psync2" });
-    send(sock, PSYNC.c_str(), PSYNC.size(), 0);
-    const auto bytesReceived = read(sock, buffer, sizeof(buffer));
+    const std::string REPLCONF2 = RESP::encodeIntoArray({ "REPLCONF", "capa", "psync2" });
+    send(sock, REPLCONF2.c_str(), REPLCONF2.size(), 0);
+    read(sock, buffer, sizeof(buffer));
 
-    if (bytesReceived > 0) {
-        buffer[bytesReceived] = '\0';
-        std::cout << "Server Response " << buffer << std::endl;
-    }
+    const std::string PSYNC = RESP::encodeIntoArray({ "PSYNC", "?", "-1" });
+    send(sock, PSYNC.c_str(), PSYNC.size(), 0);
+    read(sock, buffer, sizeof(buffer));
 
     close(sock);
 }
