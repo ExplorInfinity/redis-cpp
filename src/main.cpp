@@ -13,6 +13,7 @@
 #include "commands.h"
 #include "utils.h"
 #include "storage.h"
+#include "tcp.h"
 
 #define debug 0
 
@@ -52,6 +53,18 @@ int main(int argc, char **argv) {
     if (ServerInfo.contains("--port"))
         PORT = std::stoi(ServerInfo["--port"]);
 
+    if (ServerInfo.contains("--replicaof")) {
+        std::stringstream ss(ServerInfo["--replicaof"]);
+        std::string ip;
+        int port;
+
+        if (!(ss >> ip >> port)) {
+            std::cerr << "Invalid --replicaof format. Expected: <ip> <port>" << std::endl;
+        }
+
+        else TCP::connectToServer(ip, port);
+    }
+
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
         std::cerr << "Failed to create server socket\n";
@@ -64,7 +77,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    struct sockaddr_in server_addr{};
+    sockaddr_in server_addr{};
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);

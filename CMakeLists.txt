@@ -20,7 +20,9 @@ add_executable(redis ${SOURCE_FILES}
         src/timer.h
         src/timer.cpp
         src/commands.h
-        src/commands.cpp)
+        src/commands.cpp
+        src/tcp.h
+        src/tcp.cpp)
 
 target_link_libraries(redis PRIVATE asio asio::asio)
 target_link_libraries(redis PRIVATE Threads::Threads)
