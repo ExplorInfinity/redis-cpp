@@ -13,11 +13,12 @@
 #include "commands.h"
 #include "utils.h"
 #include "storage.h"
-#include "tcp.h"
+#include "server.h"
 
 #define debug 0
 
 void handle_client(const int client_fd) {
+    curr_client_fd = client_fd;
     std::string inputBuffer;
 
     char buffer[1024];
@@ -55,14 +56,14 @@ int main(int argc, char **argv) {
 
     if (ServerInfo.contains("--replicaof")) {
         std::stringstream ss(ServerInfo["--replicaof"]);
-        std::string ip;
         int port;
+        std::string ip;
 
-        if (!(ss >> ip >> port)) {
+        if (ss >> ip >> port)
+            Worker::initializeHandshake(ip, port);
+        else
             std::cerr << "Invalid --replicaof format. Expected: <ip> <port>" << std::endl;
-        }
 
-        else TCP::connectToServer(ip, port);
     }
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);

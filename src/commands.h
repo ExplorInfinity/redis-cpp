@@ -12,6 +12,8 @@ using TokenArray = std::vector<Token>;
 using CmdFunction = std::string(*)(const TokenArray &);
 using StringMap = std::unordered_map<std::string, std::string>;
 
+extern thread_local int curr_client_fd;
+
 namespace Commands {
     void handleCmd(int client_fd, const std::string &input);
 

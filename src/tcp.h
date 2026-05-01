@@ -3,5 +3,6 @@
 #include <string>
 
 namespace TCP {
-    void connectToServer(std::string IP, int PORT);
+    int connectToServer(std::string IP, int PORT);
+    void closeConnection(int sock);
 }

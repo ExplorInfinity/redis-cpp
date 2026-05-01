@@ -1,21 +1,22 @@
 #include "tcp.h"
 
 #include <iostream>
-#include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
 #include "resp_parser.h"
 
-void TCP::connectToServer(std::string IP, int PORT) {
+#define CONNECTION_FAILED (-1)
+
+int TCP::connectToServer(std::string IP, int PORT) {
     if (IP == "localhost")
         IP = "127.0.0.1";
 
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    const int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         std::cerr << "Socket creation failed" << std::endl;
-        return;
+        return CONNECTION_FAILED;
     }
 
     sockaddr_in server_addr{};
@@ -24,33 +25,19 @@ void TCP::connectToServer(std::string IP, int PORT) {
 
     if (inet_pton(AF_INET, IP.c_str(), &server_addr.sin_addr) <= 0) {
         std::cerr << "Invalid IP Address" << std::endl;
-        return;
+        return CONNECTION_FAILED;
     }
 
     if (connect(sock, (sockaddr*) &server_addr, sizeof(server_addr)) < 0) {
         std::cerr << "Connection Failed" << std::endl;
-        return;
+        return CONNECTION_FAILED;
     }
 
     std::cout << "Connected to server with IP " << IP << " on PORT " << PORT << std::endl;
 
-    char buffer[1024]{};
+    return sock;
+}
 
-    const std::string PING = RESP::encodeIntoArray({ "PING" });
-    send(sock, PING.c_str(), PING.size(), 0);
-    read(sock, buffer, sizeof(buffer));
-
-    const std::string REPLCONF = RESP::encodeIntoArray({ "REPLCONF", "listening-port", "6380" });
-    send(sock, REPLCONF.c_str(), REPLCONF.size(), 0);
-    read(sock, buffer, sizeof(buffer));
-
-    const std::string REPLCONF2 = RESP::encodeIntoArray({ "REPLCONF", "capa", "psync2" });
-    send(sock, REPLCONF2.c_str(), REPLCONF2.size(), 0);
-    read(sock, buffer, sizeof(buffer));
-
-    const std::string PSYNC = RESP::encodeIntoArray({ "PSYNC", "?", "-1" });
-    send(sock, PSYNC.c_str(), PSYNC.size(), 0);
-    read(sock, buffer, sizeof(buffer));
-
+void TCP::closeConnection(const int sock) {
     close(sock);
 }

@@ -22,7 +22,9 @@ add_executable(redis ${SOURCE_FILES}
         src/commands.h
         src/commands.cpp
         src/tcp.h
-        src/tcp.cpp)
+        src/tcp.cpp
+        src/server.h
+        src/server.cpp)
 
 target_link_libraries(redis PRIVATE asio asio::asio)
 target_link_libraries(redis PRIVATE Threads::Threads)

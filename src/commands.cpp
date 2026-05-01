@@ -7,6 +7,7 @@
 #include "storage.h"
 #include "commands.h"
 #include "utils.h"
+#include "server.h"
 
 static std::mutex storageMutex;
 static std::condition_variable dataAvailableCV;
@@ -16,6 +17,8 @@ static thread_local std::vector<std::pair<std::string, TokenArray>> queuedCmds;
 
 static const std::vector<std::string> QueueExcluded =
     { "EXEC", "DISCARD" };
+
+thread_local int curr_client_fd;
 
 void Commands::handleCmd(const int client_fd, const std::string &input) {
     auto token = RESP::parse(input);
@@ -348,7 +351,10 @@ std::string Commands::REPLCONF(const TokenArray &args) {
 }
 
 std::string Commands::PSYNC(const TokenArray &args) {
-    return RESP::encodeIntoSimpleString(std::format("FULLRESYNC {} 0\r\n", "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"));
+    workers.emplace_back(curr_client_fd);
+    std::string response = RESP::encodeIntoSimpleString(std::format("FULLRESYNC {} 0", "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"));
+    response += getRDB();
+    return response;
 }
 
 std::unordered_map<std::string, CmdFunction> commands = {
