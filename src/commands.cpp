@@ -343,6 +343,10 @@ std::string Commands::INFO(const TokenArray &args) {
     return RESP::Responses::EMPTY_BULK_STRING;
 }
 
+std::string Commands::REPLCONF(const TokenArray &args) {
+    return RESP::Responses::OK;
+}
+
 std::unordered_map<std::string, CmdFunction> commands = {
     { "PING", Commands::PING },
     { "ECHO", Commands::ECHO },
@@ -363,6 +367,7 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "EXEC", Commands::EXEC },
     { "DISCARD", Commands::DISCARD },
     { "INFO", Commands::INFO },
+    { "REPLCONF", Commands::REPLCONF },
 };
 
 StringMap ServerInfo;

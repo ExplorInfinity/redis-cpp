@@ -6,6 +6,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include "resp_parser.h"
+
 void TCP::connectToServer(std::string IP, int PORT) {
     if (IP == "localhost")
         IP = "127.0.0.1";
@@ -32,10 +34,18 @@ void TCP::connectToServer(std::string IP, int PORT) {
 
     std::cout << "Connected to server with IP " << IP << " on PORT " << PORT << std::endl;
 
-    const char* msg = "*1\r\n$4\r\nPING\r\n";
-    send(sock, msg, strlen(msg), 0);
-
     char buffer[1024]{};
+
+    const std::string PING = RESP::encodeIntoArray({ "PING" });
+    send(sock, PING.c_str(), PING.size(), 0);
+    read(sock, buffer, sizeof(buffer));
+
+    const std::string REPLCONF = RESP::encodeIntoArray({ "REPLCONF", "listening-port", "6380" });
+    send(sock, REPLCONF.c_str(), REPLCONF.size(), 0);
+    read(sock, buffer, sizeof(buffer));
+
+    const std::string PSYNC = RESP::encodeIntoArray({ "REPLCONF", "capa", "psync2" });
+    send(sock, PSYNC.c_str(), PSYNC.size(), 0);
     const auto bytesReceived = read(sock, buffer, sizeof(buffer));
 
     if (bytesReceived > 0) {
