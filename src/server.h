@@ -1,6 +1,9 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <unordered_map>
+
+using StringMap = std::unordered_map<std::string, std::string>;
 
 enum class ServerStatus { UNREPLICATED, REPLICATED };
 
@@ -19,3 +22,8 @@ struct Worker {
 
 extern std::vector<Worker> workers;
 std::string getRDB();
+
+extern StringMap ServerInfo;
+void setServerInfo(int argc, char **argv);
+
+extern bool isReplica;

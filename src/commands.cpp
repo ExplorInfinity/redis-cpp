@@ -20,10 +20,15 @@ static const std::vector<std::string> QueueExcluded =
 
 thread_local int curr_client_fd;
 
-void Commands::handleCmd(const int client_fd, const std::string &input) {
+void Commands::handleCmd(const int client_fd, const std::string &input, const bool expectsResponse) {
     auto token = RESP::parse(input);
     const auto cmd = convertToUpperCase(token.getDataType() == Token::DataType::ARRAY ? token.getArray()[0].getString() : token.getString());
     const auto &args = token.getArray();
+
+    if (!isReplica && writeCommands.contains(cmd)) {
+        for (const auto &worker: workers)
+            send(worker.server_fd, input.c_str(), input.size(), 0);
+    }
 
     if (MULTI_Enabled && std::ranges::find(QueueExcluded, cmd) == QueueExcluded.end()) {
         queuedCmds.emplace_back(cmd, args);
@@ -32,7 +37,8 @@ void Commands::handleCmd(const int client_fd, const std::string &input) {
     }
 
     const std::string response = commands[cmd](args);
-    send(client_fd, response.c_str(), response.size(), 0);
+    if (expectsResponse)
+        send(client_fd, response.c_str(), response.size(), 0);
 }
 
 std::string Commands::PING(const TokenArray &) {
@@ -381,8 +387,7 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "PSYNC", Commands::PSYNC },
 };
 
-StringMap ServerInfo;
 
-void setServerInfo(const int argc, char **argv) {
-    ServerInfo = parseProgramArgs(argc, argv);
-}
+std::unordered_set<std::string> writeCommands = {
+    "SET", "LPUSH", "RPUSH", "LPOP", "BLPOP", "XADD", "INCR", "MULTI", "EXEC", "DISCARD"
+};

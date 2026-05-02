@@ -3,31 +3,43 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include "commands.h"
 #include "tcp.h"
 #include "resp_parser.h"
 
 void Worker::initializeHandshake(const std::string &IP, const int PORT) {
-    const int sock = TCP::connectToServer(IP, PORT);
+    const int master_fd = TCP::connectToServer(IP, PORT);
 
     char buffer[1024];
 
     const std::string PING = RESP::encodeIntoArray({ "PING" });
-    send(sock, PING.c_str(), PING.size(), 0);
-    read(sock, buffer, sizeof(buffer));
+    send(master_fd, PING.c_str(), PING.size(), 0);
+    read(master_fd, buffer, sizeof(buffer));
 
     const std::string REPLCONF = RESP::encodeIntoArray({ "REPLCONF", "listening-port", "6380" });
-    send(sock, REPLCONF.c_str(), REPLCONF.size(), 0);
-    read(sock, buffer, sizeof(buffer));
+    send(master_fd, REPLCONF.c_str(), REPLCONF.size(), 0);
+    read(master_fd, buffer, sizeof(buffer));
 
     const std::string REPLCONF2 = RESP::encodeIntoArray({ "REPLCONF", "capa", "psync2" });
-    send(sock, REPLCONF2.c_str(), REPLCONF2.size(), 0);
-    read(sock, buffer, sizeof(buffer));
+    send(master_fd, REPLCONF2.c_str(), REPLCONF2.size(), 0);
+    read(master_fd, buffer, sizeof(buffer));
 
     const std::string PSYNC = RESP::encodeIntoArray({ "PSYNC", "?", "-1" });
-    send(sock, PSYNC.c_str(), PSYNC.size(), 0);
-    read(sock, buffer, sizeof(buffer));
+    send(master_fd, PSYNC.c_str(), PSYNC.size(), 0);
+    read(master_fd, buffer, sizeof(buffer));
 
-    TCP::closeConnection(sock);
+    std::string inputBuffer;
+    while (true) {
+        const auto bytes_received = recv(master_fd, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0)
+            break;
+
+        inputBuffer.append(buffer, bytes_received);
+        Commands::handleCmd(master_fd, inputBuffer, false);
+        inputBuffer.clear();
+    }
+
+    TCP::closeConnection(master_fd);
 }
 
 std::vector<Worker> workers;
@@ -46,3 +58,11 @@ std::string getRDB() {
     response += std::string(reinterpret_cast<const char *>(emptyRDB), sizeof(emptyRDB));
     return response;
 }
+
+StringMap ServerInfo;
+void setServerInfo(const int argc, char **argv) {
+    ServerInfo = parseProgramArgs(argc, argv);
+    isReplica = ServerInfo.contains("--replicaof");
+}
+
+bool isReplica = false;

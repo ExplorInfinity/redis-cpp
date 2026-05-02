@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "resp_parser.h"
 #include "utils.h"
@@ -10,12 +11,11 @@
 using RESP::Token;
 using TokenArray = std::vector<Token>;
 using CmdFunction = std::string(*)(const TokenArray &);
-using StringMap = std::unordered_map<std::string, std::string>;
 
 extern thread_local int curr_client_fd;
 
 namespace Commands {
-    void handleCmd(int client_fd, const std::string &input);
+    void handleCmd(int client_fd, const std::string &input, bool expectsResponse = true);
 
     std::string PING(const TokenArray &args);
     std::string ECHO(const TokenArray &args);
@@ -41,6 +41,4 @@ namespace Commands {
 };
 
 extern std::unordered_map<std::string, CmdFunction> commands;
-extern StringMap ServerInfo;
-
-void setServerInfo(int argc, char **argv);
+extern std::unordered_set<std::string> writeCommands;
