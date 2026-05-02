@@ -1,5 +1,6 @@
 #include "server.h"
 
+#include <thread>
 #include <arpa/inet.h>
 #include <unistd.h>
 
@@ -28,18 +29,20 @@ void Worker::initializeHandshake(const std::string &IP, const int PORT) {
     send(master_fd, PSYNC.c_str(), PSYNC.size(), 0);
     read(master_fd, buffer, sizeof(buffer));
 
-    std::string inputBuffer;
-    while (true) {
-        const auto bytes_received = recv(master_fd, buffer, sizeof(buffer), 0);
-        if (bytes_received <= 0)
-            break;
+    std::thread([&] {
+        std::string inputBuffer;
+        while (true) {
+            const auto bytes_received = recv(master_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0)
+                break;
 
-        inputBuffer.append(buffer, bytes_received);
-        Commands::handleCmd(master_fd, inputBuffer, false);
-        inputBuffer.clear();
-    }
+            inputBuffer.append(buffer, bytes_received);
+            Commands::handleCmd(master_fd, inputBuffer, false);
+            inputBuffer.clear();
+        }
 
-    TCP::closeConnection(master_fd);
+        TCP::closeConnection(master_fd);
+    }).detach();
 }
 
 std::vector<Worker> workers;
