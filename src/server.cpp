@@ -62,6 +62,7 @@ void Worker::initializeHandshake(const std::string &IP, const int PORT) {
 
             inputBuffer.append(buffer, bytes_received);
             Commands::handleCmd(master_fd, inputBuffer, false);
+            replicaOffset += static_cast<int>(bytes_received);
             inputBuffer.clear();
         }
 
@@ -93,3 +94,4 @@ void setServerInfo(const int argc, char **argv) {
 }
 
 bool isReplica = false;
+int replicaOffset = 0;

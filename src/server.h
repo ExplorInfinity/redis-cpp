@@ -27,3 +27,4 @@ extern StringMap ServerInfo;
 void setServerInfo(int argc, char **argv);
 
 extern bool isReplica;
+extern int replicaOffset;

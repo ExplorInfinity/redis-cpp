@@ -370,7 +370,7 @@ std::string Commands::REPLCONF(const TokenArray &args) {
             return RESP::Responses::OK;
 
         if (subcommand == "getack" && arg == "*")
-            return RESP::encodeIntoArray({ "REPLCONF", "ACK", "0" });
+            return RESP::encodeIntoArray({ "REPLCONF", "ACK", std::to_string(replicaOffset) });
     }
 
     return RESP::Responses::NULL_BULK_STRING;
