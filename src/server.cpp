@@ -53,17 +53,16 @@ void Worker::initializeHandshake(const std::string &IP, const int PORT) {
 
     inputBuffer = inputBuffer.substr(totalBytes);
 
-    std::thread([master_fd, inputBuffer] {
+    std::thread([master_fd, inputBuffer = std::move(inputBuffer)] mutable  {
         char buffer[4096];
-        std::string input = inputBuffer;
         while (true) {
             const auto bytes_received = recv(master_fd, buffer, sizeof(buffer), 0);
             if (bytes_received <= 0)
                 break;
 
-            input.append(buffer, bytes_received);
-            Commands::handleCmd(master_fd, input, false);
-            input.clear();
+            inputBuffer.append(buffer, bytes_received);
+            Commands::handleCmd(master_fd, inputBuffer, false);
+            inputBuffer.clear();
         }
 
         TCP::closeConnection(master_fd);
