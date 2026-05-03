@@ -18,6 +18,9 @@ static thread_local std::vector<std::pair<std::string, TokenArray>> queuedCmds;
 static const std::vector<std::string> QueueExcluded =
     { "EXEC", "DISCARD" };
 
+static const std::vector<std::string> SilentExcluded =
+    { "REPLCONF" };
+
 thread_local int curr_client_fd;
 
 void Commands::handleCmd(const int client_fd, const std::string &input, const bool expectsResponse) {
@@ -39,7 +42,7 @@ void Commands::handleCmd(const int client_fd, const std::string &input, const bo
         }
 
         const std::string response = commands[cmd](args);
-        if (expectsResponse)
+        if (expectsResponse || std::ranges::find(SilentExcluded, cmd) != SilentExcluded.end())
             send(client_fd, response.c_str(), response.size(), 0);
     }
 }
@@ -356,7 +359,21 @@ std::string Commands::INFO(const TokenArray &args) {
 }
 
 std::string Commands::REPLCONF(const TokenArray &args) {
-    return RESP::Responses::OK;
+    if (args.size() == 3) {
+        const auto &subcommand = args[1].getString();
+        const auto &arg = args[2].getString();
+
+        if (subcommand == "listening-port")
+            return RESP::Responses::OK;
+
+        if (subcommand == "capa" && arg == "psync2")
+            return RESP::Responses::OK;
+
+        if (subcommand == "getack" && arg == "*")
+            return RESP::encodeIntoArray({ "REPLCONF", "ACK", "0" });
+    }
+
+    return RESP::Responses::NULL_BULK_STRING;
 }
 
 std::string Commands::PSYNC(const TokenArray &args) {
