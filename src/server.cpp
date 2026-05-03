@@ -1,5 +1,6 @@
 #include "server.h"
 
+#include <iostream>
 #include <thread>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -11,7 +12,7 @@
 void Worker::initializeHandshake(const std::string &IP, const int PORT) {
     const int master_fd = TCP::connectToServer(IP, PORT);
 
-    char buffer[1024];
+    char buffer[4096];
 
     const std::string PING = RESP::encodeIntoArray({ "PING" });
     send(master_fd, PING.c_str(), PING.size(), 0);
@@ -27,18 +28,42 @@ void Worker::initializeHandshake(const std::string &IP, const int PORT) {
 
     const std::string PSYNC = RESP::encodeIntoArray({ "PSYNC", "?", "-1" });
     send(master_fd, PSYNC.c_str(), PSYNC.size(), 0);
-    read(master_fd, buffer, sizeof(buffer));
+    auto receivedBytes = read(master_fd, buffer, sizeof(buffer));
 
-    std::thread([&] {
-        std::string inputBuffer;
+    std::string inputBuffer;
+    inputBuffer.append(buffer, receivedBytes);
+
+    int cursor = 0;
+    RESP::parseSimpleString(inputBuffer, cursor);
+    inputBuffer = inputBuffer.substr(cursor);
+
+    while (inputBuffer.find(RESP::CRLF) == std::string::npos) {
+        receivedBytes = read(master_fd, buffer, sizeof(buffer));
+        inputBuffer.append(buffer, receivedBytes);
+    }
+
+    int endSizeIndex = inputBuffer.find(RESP::CRLF);
+    int totalBytes = std::stoi(inputBuffer.substr(1, endSizeIndex));
+    inputBuffer = inputBuffer.substr(endSizeIndex + RESP::CRLF.size());
+
+    while (inputBuffer.size() < totalBytes) {
+        receivedBytes = read(master_fd, buffer, sizeof(buffer));
+        inputBuffer.append(buffer, receivedBytes);
+    }
+
+    inputBuffer = inputBuffer.substr(totalBytes);
+
+    std::thread([master_fd, inputBuffer] {
+        char buffer[4096];
+        std::string input = inputBuffer;
         while (true) {
             const auto bytes_received = recv(master_fd, buffer, sizeof(buffer), 0);
             if (bytes_received <= 0)
                 break;
 
-            inputBuffer.append(buffer, bytes_received);
-            Commands::handleCmd(master_fd, inputBuffer, false);
-            inputBuffer.clear();
+            input.append(buffer, bytes_received);
+            Commands::handleCmd(master_fd, input, false);
+            input.clear();
         }
 
         TCP::closeConnection(master_fd);

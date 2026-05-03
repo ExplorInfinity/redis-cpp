@@ -44,6 +44,7 @@ namespace RESP {
 
     Token parse(const std::string &s);
     Token parse(const std::string &s, int &pos);
+    std::vector<Token> partialParse(const std::string &s);
 
     Token parseInteger(const std::string &s, int &pos);
     Token parseSimpleString(const std::string &s, int &pos);

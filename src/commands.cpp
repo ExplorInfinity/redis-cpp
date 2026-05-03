@@ -21,24 +21,27 @@ static const std::vector<std::string> QueueExcluded =
 thread_local int curr_client_fd;
 
 void Commands::handleCmd(const int client_fd, const std::string &input, const bool expectsResponse) {
-    auto token = RESP::parse(input);
-    const auto cmd = convertToUpperCase(token.getDataType() == Token::DataType::ARRAY ? token.getArray()[0].getString() : token.getString());
-    const auto &args = token.getArray();
+    auto tokens = RESP::partialParse(input);
 
-    if (!isReplica && writeCommands.contains(cmd)) {
-        for (const auto &worker: workers)
-            send(worker.server_fd, input.c_str(), input.size(), 0);
+    for (const auto &token : tokens) {
+        const auto cmd = convertToUpperCase(token.getDataType() == Token::DataType::ARRAY ? token.getArray()[0].getString() : token.getString());
+        const auto &args = token.getArray();
+
+        if (!isReplica && writeCommands.contains(cmd)) {
+            for (const auto &worker: workers)
+                send(worker.server_fd, input.c_str(), input.size(), 0);
+        }
+
+        if (MULTI_Enabled && std::ranges::find(QueueExcluded, cmd) == QueueExcluded.end()) {
+            queuedCmds.emplace_back(cmd, args);
+            send(client_fd, RESP::Responses::QUEUED.c_str(), RESP::Responses::QUEUED.size(), 0);
+            return;
+        }
+
+        const std::string response = commands[cmd](args);
+        if (expectsResponse)
+            send(client_fd, response.c_str(), response.size(), 0);
     }
-
-    if (MULTI_Enabled && std::ranges::find(QueueExcluded, cmd) == QueueExcluded.end()) {
-        queuedCmds.emplace_back(cmd, args);
-        send(client_fd, RESP::Responses::QUEUED.c_str(), RESP::Responses::QUEUED.size(), 0);
-        return;
-    }
-
-    const std::string response = commands[cmd](args);
-    if (expectsResponse)
-        send(client_fd, response.c_str(), response.size(), 0);
 }
 
 std::string Commands::PING(const TokenArray &) {

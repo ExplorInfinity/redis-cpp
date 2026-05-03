@@ -5,6 +5,8 @@
 #include <ranges>
 #include <algorithm>
 
+#include "utils.h"
+
 #define debug 0
 
 /* RESP Token Class */
@@ -41,13 +43,17 @@ std::vector<RESP::Token> RESP::Token::getArray() const {
 /* RESP Parser */
 RESP::Token RESP::parse(const std::string &s) {
     int pos = 0;
-    std::string lowerCase = s;
-    std::ranges::transform(
-        lowerCase, lowerCase.begin(),
-        [](unsigned char c) {
-            return std::tolower(c);
-        });
+    const std::string lowerCase = convertToLowerCase(s);
     return parse(lowerCase, pos);
+}
+
+std::vector<RESP::Token> RESP::partialParse(const std::string &s) {
+    int pos = 0;
+    const std::string lowerCase = convertToLowerCase(s);
+    std::vector<Token> tokens;
+    while (pos < s.size())
+        tokens.push_back(parse(lowerCase, pos));
+    return tokens;
 }
 
 RESP::Token RESP::parse(const std::string &s, int &pos) {

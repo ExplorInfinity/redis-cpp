@@ -38,6 +38,13 @@ std::string convertToUpperCase(std::string s) {
     return s;
 }
 
+std::string convertToLowerCase(std::string s) {
+    std::ranges::transform(s, s.begin(), [] (unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return s;
+}
+
 bool isDouble(const std::string &s) {
     try {
         size_t pos;
