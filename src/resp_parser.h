@@ -21,6 +21,7 @@ namespace RESP {
     class Token {
     public:
         enum class DataType { NIL, INTEGER, S_STRING, B_STRING, ARRAY };
+        std::string cmdStr;
     private:
         DataType type = DataType::NIL;
         long long m_int = -1;
@@ -42,14 +43,17 @@ namespace RESP {
         [[nodiscard]] std::vector<Token> getArray() const;
     };
 
-    Token parse(const std::string &s);
-    Token parse(const std::string &s, int &pos);
-    std::vector<Token> partialParse(const std::string &s);
+    enum class ParseStatus { OK, INCOMPLETE, ERROR };
+    using ReturnToken = std::pair<Token, ParseStatus>;
 
-    Token parseInteger(const std::string &s, int &pos);
-    Token parseSimpleString(const std::string &s, int &pos);
-    Token parseBulkString(const std::string &s, int &pos);
-    Token parseArray(const std::string &s, int &pos);
+    Token parse(const std::string &s);
+    ReturnToken parse(const std::string &s, int &pos);
+    std::pair<int, std::vector<Token>> partialParse(const std::string &s);
+
+    ReturnToken parseInteger(const std::string &s, int &pos);
+    ReturnToken parseSimpleString(const std::string &s, int &pos);
+    ReturnToken parseBulkString(const std::string &s, int &pos);
+    ReturnToken parseArray(const std::string &s, int &pos);
 
     std::string encodeIntoInt(long long i);
     std::string encodeIntoSimpleString(const std::string &s);
@@ -60,5 +64,7 @@ namespace RESP {
 
     std::string createRawArray(const std::vector<std::string> &v);
     std::string encodePairsIntoBulkString(const std::vector<std::pair<std::string, std::string>> &kv_pairs);
+
+    std::string encode(const Token &token);
 }
 

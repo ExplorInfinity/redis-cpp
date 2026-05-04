@@ -15,36 +15,40 @@ static std::condition_variable dataAvailableCV;
 static thread_local bool MULTI_Enabled = false;
 static thread_local std::vector<std::pair<std::string, TokenArray>> queuedCmds;
 
-static const std::vector<std::string> QueueExcluded =
+static const std::unordered_set<std::string> QueueExcluded =
     { "EXEC", "DISCARD" };
 
-static const std::vector<std::string> SilentExcluded =
+static const std::unordered_set<std::string> SilentExcluded =
     { "REPLCONF" };
 
 thread_local int curr_client_fd;
 
-void Commands::handleCmd(const int client_fd, const std::string &input, const bool expectsResponse) {
-    auto tokens = RESP::partialParse(input);
+int Commands::handleCmd(const int client_fd, const std::string &input, const bool expectsResponse) {
+    auto [bytesUsed, tokens] = RESP::partialParse(input);
 
     for (const auto &token : tokens) {
         const auto cmd = convertToUpperCase(token.getDataType() == Token::DataType::ARRAY ? token.getArray()[0].getString() : token.getString());
         const auto &args = token.getArray();
 
-        if (!isReplica && writeCommands.contains(cmd)) {
+        if (!isReplica && WriteCommands.contains(cmd)) {
             for (const auto &worker: workers)
-                send(worker.server_fd, input.c_str(), input.size(), 0);
+                send(worker.server_fd, token.cmdStr.c_str(), token.cmdStr.size(), 0);
         }
 
-        if (MULTI_Enabled && std::ranges::find(QueueExcluded, cmd) == QueueExcluded.end()) {
+        if (MULTI_Enabled && !QueueExcluded.contains(cmd)) {
             queuedCmds.emplace_back(cmd, args);
             send(client_fd, RESP::Responses::QUEUED.c_str(), RESP::Responses::QUEUED.size(), 0);
-            return;
+            continue;
         }
 
         const std::string response = commands[cmd](args);
-        if (expectsResponse || std::ranges::find(SilentExcluded, cmd) != SilentExcluded.end())
+        if (expectsResponse || SilentExcluded.contains(cmd))
             send(client_fd, response.c_str(), response.size(), 0);
+
+        offset += static_cast<int>(token.cmdStr.size());
     }
+
+    return bytesUsed;
 }
 
 std::string Commands::PING(const TokenArray &) {
@@ -360,17 +364,17 @@ std::string Commands::INFO(const TokenArray &args) {
 
 std::string Commands::REPLCONF(const TokenArray &args) {
     if (args.size() == 3) {
-        const auto &subcommand = args[1].getString();
+        const auto subcommand = convertToUpperCase(args[1].getString());
         const auto &arg = args[2].getString();
 
-        if (subcommand == "listening-port")
+        if (subcommand == "LISTENING-PORT")
             return RESP::Responses::OK;
 
-        if (subcommand == "capa" && arg == "psync2")
+        if (subcommand == "CAPA" && arg == "psync2")
             return RESP::Responses::OK;
 
-        if (subcommand == "getack" && arg == "*")
-            return RESP::encodeIntoArray({ "REPLCONF", "ACK", std::to_string(replicaOffset) });
+        if (subcommand == "GETACK" && arg == "*")
+            return RESP::encodeIntoArray({ "REPLCONF", "ACK", std::to_string(offset) });
     }
 
     return RESP::Responses::NULL_BULK_STRING;
@@ -408,6 +412,6 @@ std::unordered_map<std::string, CmdFunction> commands = {
 };
 
 
-std::unordered_set<std::string> writeCommands = {
+std::unordered_set<std::string> WriteCommands = {
     "SET", "LPUSH", "RPUSH", "LPOP", "BLPOP", "XADD", "INCR", "MULTI", "EXEC", "DISCARD"
 };

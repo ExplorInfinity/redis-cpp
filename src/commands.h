@@ -15,7 +15,7 @@ using CmdFunction = std::string(*)(const TokenArray &);
 extern thread_local int curr_client_fd;
 
 namespace Commands {
-    void handleCmd(int client_fd, const std::string &input, bool expectsResponse = true);
+    int handleCmd(int client_fd, const std::string &input, bool expectsResponse = true);
 
     std::string PING(const TokenArray &args);
     std::string ECHO(const TokenArray &args);
@@ -41,4 +41,4 @@ namespace Commands {
 };
 
 extern std::unordered_map<std::string, CmdFunction> commands;
-extern std::unordered_set<std::string> writeCommands;
+extern std::unordered_set<std::string> WriteCommands;
