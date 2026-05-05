@@ -387,6 +387,19 @@ std::string Commands::PSYNC(const TokenArray &args) {
     return response;
 }
 
+std::string Commands::WAIT(const TokenArray &args) {
+    if (args.size() != 3)
+        return RESP::encodeIntoSimpleError("Invalid number of arguments to 'WAIT' command");
+
+    const int numReplicas = std::stoi(args[1].getString());
+    const int timeout = std::stoi(args[2].getString());
+
+    if (numReplicas == 0)
+        return RESP::encodeIntoInt(0);
+
+    return RESP::Responses::NULL_BULK_STRING;
+}
+
 std::unordered_map<std::string, CmdFunction> commands = {
     { "PING", Commands::PING },
     { "ECHO", Commands::ECHO },
@@ -409,6 +422,7 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "INFO", Commands::INFO },
     { "REPLCONF", Commands::REPLCONF },
     { "PSYNC", Commands::PSYNC },
+    { "WAIT", Commands::WAIT },
 };
 
 

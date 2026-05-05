@@ -38,6 +38,7 @@ namespace Commands {
     std::string INFO(const TokenArray& args);
     std::string REPLCONF(const TokenArray &args);
     std::string PSYNC(const TokenArray &args);
+    std::string WAIT(const TokenArray &args);
 };
 
 extern std::unordered_map<std::string, CmdFunction> commands;
