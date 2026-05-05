@@ -395,7 +395,7 @@ std::string Commands::WAIT(const TokenArray &args) {
     const int timeout = std::stoi(args[2].getString());
 
     if (numReplicas == 0)
-        return RESP::encodeIntoInt(0);
+        return RESP::encodeIntoInt(workers.size());
 
     return RESP::Responses::NULL_BULK_STRING;
 }
