@@ -6,9 +6,6 @@
 
 #include "storage.h"
 #include "commands.h"
-
-#include <iostream>
-
 #include "utils.h"
 #include "server.h"
 
@@ -409,6 +406,9 @@ std::string Commands::WAIT(const TokenArray &args) {
         return RESP::encodeIntoInt(0);
 
     const auto targetOffset = Server::master_replOffset;
+    if (targetOffset == 0)
+        return RESP::encodeIntoInt(Server::replicas.size());
+
     if (const int replicaCount = Server::countReplicasWithTargetOffset(targetOffset); replicaCount >= numReplicas)
         return RESP::encodeIntoInt(replicaCount);
 
@@ -422,6 +422,8 @@ std::string Commands::WAIT(const TokenArray &args) {
     };
 
     cvReplica.wait_for(lock, std::chrono::milliseconds(timeout), predicate);
+    lock.unlock();
+
     return RESP::encodeIntoInt(Server::countReplicasWithTargetOffset(targetOffset));
 }
 
