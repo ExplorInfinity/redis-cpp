@@ -379,8 +379,10 @@ std::string Commands::REPLCONF(const TokenArray &args) {
         }
 
         if (subcommand == "ACK") {
-            std::lock_guard lock(replicaMutex);
-            Server::replicas[curr_client_fd].offset = std::stoll(arg);
+            {
+                std::lock_guard lock(replicaMutex);
+                Server::replicas[curr_client_fd].offset = std::stoll(arg);
+            }
             cvReplica.notify_all();
             return "";
         }
