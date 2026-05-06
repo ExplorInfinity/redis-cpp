@@ -1,77 +1,22 @@
 #include "server.h"
 
 #include <iostream>
-#include <thread>
+#include <sstream>
+#include <ranges>
 #include <arpa/inet.h>
-#include <unistd.h>
 
+#include "utils.h"
 #include "commands.h"
-#include "tcp.h"
-#include "resp_parser.h"
 
-void Worker::initializeHandshake(const std::string &IP, const int PORT) {
-    const int master_fd = TCP::connectToServer(IP, PORT);
+int Server::port = 6379;
+ll Server::replOffset = 0;
+ll Server::master_replOffset = 0;
+bool Server::isReplica = false;
+std::string Server::replId = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+StringMap Server::info;
+ReplicaMap Server::replicas;
 
-    char buffer[4096];
-
-    const std::string PING = RESP::encodeIntoArray({ "PING" });
-    send(master_fd, PING.c_str(), PING.size(), 0);
-    read(master_fd, buffer, sizeof(buffer));
-
-    const std::string REPLCONF = RESP::encodeIntoArray({ "REPLCONF", "listening-port", "6380" });
-    send(master_fd, REPLCONF.c_str(), REPLCONF.size(), 0);
-    read(master_fd, buffer, sizeof(buffer));
-
-    const std::string REPLCONF2 = RESP::encodeIntoArray({ "REPLCONF", "capa", "psync2" });
-    send(master_fd, REPLCONF2.c_str(), REPLCONF2.size(), 0);
-    read(master_fd, buffer, sizeof(buffer));
-
-    const std::string PSYNC = RESP::encodeIntoArray({ "PSYNC", "?", "-1" });
-    send(master_fd, PSYNC.c_str(), PSYNC.size(), 0);
-    auto receivedBytes = read(master_fd, buffer, sizeof(buffer));
-
-    std::string inputBuffer;
-    inputBuffer.append(buffer, receivedBytes);
-
-    int cursor = 0;
-    RESP::parseSimpleString(inputBuffer, cursor);
-    inputBuffer = inputBuffer.substr(cursor);
-
-    while (inputBuffer.find(RESP::CRLF) == std::string::npos) {
-        receivedBytes = read(master_fd, buffer, sizeof(buffer));
-        inputBuffer.append(buffer, receivedBytes);
-    }
-
-    int endSizeIndex = inputBuffer.find(RESP::CRLF);
-    int totalBytes = std::stoi(inputBuffer.substr(1, endSizeIndex));
-    inputBuffer = inputBuffer.substr(endSizeIndex + RESP::CRLF.size());
-
-    while (inputBuffer.size() < totalBytes) {
-        receivedBytes = read(master_fd, buffer, sizeof(buffer));
-        inputBuffer.append(buffer, receivedBytes);
-    }
-
-    inputBuffer = inputBuffer.erase(0, totalBytes);
-
-    std::thread([master_fd, inputBuffer = std::move(inputBuffer)] mutable  {
-        char buffer[4096];
-        while (true) {
-            const int bytesUsed = Commands::handleCmd(master_fd, inputBuffer, false);
-            inputBuffer.erase(0, bytesUsed);
-
-            const auto bytes_received = recv(master_fd, buffer, sizeof(buffer), 0);
-            if (bytes_received <= 0)
-                break;
-            inputBuffer.append(buffer, bytes_received);
-        }
-
-        TCP::closeConnection(master_fd);
-    }).detach();
-}
-
-std::vector<Worker> workers;
-
-std::string getRDB() {
+std::string Server::getRDB() {
     const unsigned char emptyRDB[] = {
         0x52, 0x45, 0x44, 0x49, 0x53, 0x30, 0x30, 0x31, 0x31, 0xfa, 0x09, 0x72, 0x65, 0x64, 0x69, 0x73,
         0x2d, 0x76, 0x65, 0x72, 0x05, 0x37, 0x2e, 0x32, 0x2e, 0x30, 0xfa, 0x0a, 0x72, 0x65, 0x64, 0x69,
@@ -86,11 +31,38 @@ std::string getRDB() {
     return response;
 }
 
-StringMap ServerInfo;
-void setServerInfo(const int argc, char **argv) {
-    ServerInfo = parseProgramArgs(argc, argv);
-    isReplica = ServerInfo.contains("--replicaof");
+void Server::setServerInfo(const int argc, char **argv) {
+    info = parseProgramArgs(argc, argv);
+
+    if (const auto it = info.find("--port"); it != info.end())
+        port = std::stoi(it->second);
+
+    if (const auto it = info.find("--replicaof"); it != info.end()) {
+        isReplica = true;
+        std::stringstream ss(it->second);
+
+        std::string master_ip;
+        if (int master_port; ss >> master_ip >> master_port)
+            Replica::initializeHandshake(master_ip, master_port);
+        else
+            std::cerr << "Invalid --replicaof format. Expected: <ip> <port>" << std::endl;
+    }
 }
 
-bool isReplica = false;
-int offset = 0;
+void Server::addReplica(const int replica_fd) {
+    replicas[replica_fd].server_fd = replica_fd;
+}
+
+void Server::propagateToReplicas(const std::string &s) {
+    for (const auto &replica_fd: replicas | std::views::keys)
+        send(replica_fd, s.c_str(), s.size(), 0);
+    master_replOffset += static_cast<int>(s.size());
+}
+
+int Server::countReplicasWithTargetOffset(const ll targetOffset) {
+    int count = 0;
+    for (const auto &replica: replicas | std::views::values) {
+        count += replica.offset >= targetOffset;
+    }
+    return count;
+}

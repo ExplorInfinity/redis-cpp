@@ -2,10 +2,13 @@
 #include <condition_variable>
 #include <sys/socket.h>
 #include <ranges>
-#include <algorithm>
+#include <unordered_set>
 
 #include "storage.h"
 #include "commands.h"
+
+#include <iostream>
+
 #include "utils.h"
 #include "server.h"
 
@@ -15,11 +18,10 @@ static std::condition_variable dataAvailableCV;
 static thread_local bool MULTI_Enabled = false;
 static thread_local std::vector<std::pair<std::string, TokenArray>> queuedCmds;
 
-static const std::unordered_set<std::string> QueueExcluded =
-    { "EXEC", "DISCARD" };
-
-static const std::unordered_set<std::string> SilentExcluded =
-    { "REPLCONF" };
+static const std::unordered_set<std::string>
+    QueueExcluded = { "EXEC", "DISCARD" },
+    SilentExcluded = { "REPLCONF" },
+    WriteCommands = { "SET", "LPUSH", "RPUSH", "LPOP", "BLPOP", "XADD", "INCR", "MULTI", "EXEC", "DISCARD" };
 
 thread_local int curr_client_fd;
 
@@ -30,9 +32,8 @@ int Commands::handleCmd(const int client_fd, const std::string &input, const boo
         const auto cmd = convertToUpperCase(token.getDataType() == Token::DataType::ARRAY ? token.getArray()[0].getString() : token.getString());
         const auto &args = token.getArray();
 
-        if (!isReplica && WriteCommands.contains(cmd)) {
-            for (const auto &worker: workers)
-                send(worker.server_fd, token.cmdStr.c_str(), token.cmdStr.size(), 0);
+        if (!Server::isReplica && WriteCommands.contains(cmd)) {
+            Server::propagateToReplicas(token.cmdStr);
         }
 
         if (MULTI_Enabled && !QueueExcluded.contains(cmd)) {
@@ -42,10 +43,10 @@ int Commands::handleCmd(const int client_fd, const std::string &input, const boo
         }
 
         const std::string response = commands[cmd](args);
-        if (expectsResponse || SilentExcluded.contains(cmd))
+        if (!response.empty() && (expectsResponse || SilentExcluded.contains(cmd)))
             send(client_fd, response.c_str(), response.size(), 0);
 
-        offset += static_cast<int>(token.cmdStr.size());
+        Server::replOffset += static_cast<int>(token.cmdStr.size());
     }
 
     return bytesUsed;
@@ -354,9 +355,9 @@ std::string Commands::DISCARD(const TokenArray&) {
 std::string Commands::INFO(const TokenArray &args) {
     if (args.size() >= 2 && args[1].getString() == "replication")
         return RESP::encodePairsIntoBulkString({
-            { "role",  (ServerInfo.contains("--replicaof") ? "slave" : "master") },
-            { "master_replid", "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb" },
-            { "master_repl_offset",  "0" },
+            { "role",  (Server::isReplica ? "slave" : "master") },
+            { "master_replid", Server::replId },
+            { "master_repl_offset",  std::to_string(Server::replOffset) },
         });
 
     return RESP::Responses::EMPTY_BULK_STRING;
@@ -373,17 +374,25 @@ std::string Commands::REPLCONF(const TokenArray &args) {
         if (subcommand == "CAPA" && arg == "psync2")
             return RESP::Responses::OK;
 
-        if (subcommand == "GETACK" && arg == "*")
-            return RESP::encodeIntoArray({ "REPLCONF", "ACK", std::to_string(offset) });
+        if (subcommand == "GETACK" && arg == "*") {
+            return RESP::encodeIntoArray({ "REPLCONF", "ACK", std::to_string(Server::replOffset) });
+        }
+
+        if (subcommand == "ACK") {
+            std::lock_guard lock(replicaMutex);
+            Server::replicas[curr_client_fd].offset = std::stoll(arg);
+            cvReplica.notify_all();
+            return "";
+        }
     }
 
     return RESP::Responses::NULL_BULK_STRING;
 }
 
-std::string Commands::PSYNC(const TokenArray &args) {
-    workers.emplace_back(curr_client_fd);
-    std::string response = RESP::encodeIntoSimpleString(std::format("FULLRESYNC {} 0", "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"));
-    response += getRDB();
+std::string Commands::PSYNC(const TokenArray &) {
+    Server::addReplica(curr_client_fd);
+    std::string response = RESP::encodeIntoSimpleString(std::format("FULLRESYNC {} 0", Server::replId));
+    response += Server::getRDB();
     return response;
 }
 
@@ -397,7 +406,21 @@ std::string Commands::WAIT(const TokenArray &args) {
     if (numReplicas == 0)
         return RESP::encodeIntoInt(0);
 
-    return RESP::encodeIntoInt(workers.size());
+    const auto targetOffset = Server::master_replOffset;
+    if (const int replicaCount = Server::countReplicasWithTargetOffset(targetOffset); replicaCount >= numReplicas)
+        return RESP::encodeIntoInt(replicaCount);
+
+    /* Sending requests to replicas */
+    const std::string ReplicaAckCommand = RESP::encodeIntoArray({ "REPLCONF", "GETACK", "*" });
+    Server::propagateToReplicas(ReplicaAckCommand);
+
+    std::unique_lock lock(replicaMutex);
+    auto predicate = [targetOffset, numReplicas] {
+        return Server::countReplicasWithTargetOffset(targetOffset) >= numReplicas;
+    };
+
+    cvReplica.wait_for(lock, std::chrono::milliseconds(timeout), predicate);
+    return RESP::encodeIntoInt(Server::countReplicasWithTargetOffset(targetOffset));
 }
 
 std::unordered_map<std::string, CmdFunction> commands = {
@@ -423,9 +446,4 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "REPLCONF", Commands::REPLCONF },
     { "PSYNC", Commands::PSYNC },
     { "WAIT", Commands::WAIT },
-};
-
-
-std::unordered_set<std::string> WriteCommands = {
-    "SET", "LPUSH", "RPUSH", "LPOP", "BLPOP", "XADD", "INCR", "MULTI", "EXEC", "DISCARD"
 };

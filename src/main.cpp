@@ -1,8 +1,6 @@
-#include <algorithm>
 #include <iostream>
 #include <cstdlib>
 #include <string>
-#include <cstring>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -48,23 +46,7 @@ int main(int argc, char **argv) {
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
 
-    int PORT = 6379;
-    setServerInfo(argc, argv);
-
-    if (ServerInfo.contains("--port"))
-        PORT = std::stoi(ServerInfo["--port"]);
-
-    if (ServerInfo.contains("--replicaof")) {
-        std::stringstream ss(ServerInfo["--replicaof"]);
-        int port;
-        std::string ip;
-
-        if (ss >> ip >> port)
-            Worker::initializeHandshake(ip, port);
-        else
-            std::cerr << "Invalid --replicaof format. Expected: <ip> <port>" << std::endl;
-
-    }
+    Server::setServerInfo(argc, argv);
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -81,10 +63,10 @@ int main(int argc, char **argv) {
     sockaddr_in server_addr{};
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(Server::port);
 
     if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) != 0) {
-        std::cerr << std::format("Failed to bind to port {}\n", PORT);
+        std::cerr << std::format("Failed to bind to port {}\n", Server::port);
         return 1;
     }
 
@@ -94,7 +76,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    struct sockaddr_in client_addr{};
+    sockaddr_in client_addr{};
     int client_addr_len = sizeof(client_addr);
     std::cout << "Waiting for a client to connect...\n";
 

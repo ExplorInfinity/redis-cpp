@@ -3,7 +3,6 @@
 #include <vector>
 #include <functional>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "resp_parser.h"
 #include "utils.h"
@@ -42,4 +41,3 @@ namespace Commands {
 };
 
 extern std::unordered_map<std::string, CmdFunction> commands;
-extern std::unordered_set<std::string> WriteCommands;
