@@ -15,6 +15,8 @@ bool Server::isReplica = false;
 std::string Server::replId = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
 StringMap Server::info;
 ReplicaMap Server::replicas;
+std::string Server::dir;
+std::string Server::dbfilename;
 
 std::string Server::getRDB() {
     const unsigned char emptyRDB[] = {
@@ -47,6 +49,12 @@ void Server::setServerInfo(const int argc, char **argv) {
         else
             std::cerr << "Invalid --replicaof format. Expected: <ip> <port>" << std::endl;
     }
+
+    if (const auto it = info.find("--dir"); it != info.end())
+        dir = it->second;
+
+    if (const auto it = info.find("--dbfilename"); it != info.end())
+        dbfilename = it->second;
 }
 
 void Server::addReplica(const int replica_fd) {

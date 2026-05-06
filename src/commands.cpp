@@ -427,6 +427,23 @@ std::string Commands::WAIT(const TokenArray &args) {
     return RESP::encodeIntoInt(Server::countReplicasWithTargetOffset(targetOffset));
 }
 
+std::string Commands::CONFIG(const TokenArray &args) {
+    if (args.size() != 3)
+        return RESP::encodeIntoSimpleError("Invalid number of arguments to 'CONFIG' command");
+
+    const auto subcommand = convertToUpperCase(args[1].getString());
+    const auto &key = args[2].getString();
+
+    if (subcommand == "GET") {
+        if (key == "dir")
+            return RESP::encodeIntoArray({ "dir", Server::dir });
+        if (key == "dbfilename")
+            return RESP::encodeIntoArray({ "dbfilename", Server::dbfilename });
+    }
+
+    return RESP::encodeIntoSimpleError("Invalid arguments to 'CONFIG' command");
+}
+
 std::unordered_map<std::string, CmdFunction> commands = {
     { "PING", Commands::PING },
     { "ECHO", Commands::ECHO },
@@ -450,4 +467,5 @@ std::unordered_map<std::string, CmdFunction> commands = {
     { "REPLCONF", Commands::REPLCONF },
     { "PSYNC", Commands::PSYNC },
     { "WAIT", Commands::WAIT },
+    { "CONFIG", Commands::CONFIG },
 };

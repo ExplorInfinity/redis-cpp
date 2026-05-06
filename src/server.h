@@ -18,6 +18,8 @@ public:
     static std::string replId;
     static StringMap info;
     static ReplicaMap replicas;
+    static std::string dir;
+    static std::string dbfilename;
 
     Server() = delete;
 
